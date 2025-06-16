@@ -1,18 +1,17 @@
-import { GeistSans, GeistMono } from "geist/font";
 import "./globals.css";
-
-const geistSans = GeistSans;
-const geistMono = GeistMono;
+import Providers from "@/components/Providers";
 
 export const metadata = {
-  title: "Stock Market Simulator",
+  title: "Game of Trades",
   description: "A real-time stock market simulation game",
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body>{children}</body>
+    <html lang="en">
+      <body>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }
