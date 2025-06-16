@@ -7,6 +7,7 @@ import TradeForm from '@/components/TradeForm';
 export default function Dashboard() {
     const svgRef = useRef(null);
     const dataRef = useRef({});
+    const scaleRef = useRef({});
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const [stocks, setStocks] = useState([]);
@@ -86,6 +87,85 @@ export default function Dashboard() {
         }
     }, [selectedStock, selectedTimeFrame]);
 
+    // Function to update price indicator in real-time
+    const updatePriceIndicator = (currentPrice) => {
+        if (!svgRef.current || !selectedStock || !dataRef.current[selectedStock]?.length) {
+            console.log('Price indicator update skipped - missing requirements');
+            return;
+        }
+
+        try {
+            const svg = d3.select(svgRef.current).select('g');
+            if (!svg.node()) {
+                console.log('Price indicator update skipped - no SVG node');
+                return;
+            }
+
+            const data = dataRef.current[selectedStock];
+            const lastCandle = data[data.length - 1];
+
+            // Use existing scales from the chart
+            const { xScale, yScale, width, margin } = scaleRef.current;
+            if (!xScale || !yScale || !width) {
+                console.log('Price indicator update skipped - missing scales');
+                return;
+            }
+
+            console.log('Updating price indicator for', selectedStock, 'with price', currentPrice);
+
+            // Remove existing price indicators
+            svg.selectAll('.current-price-line').remove();
+            svg.selectAll('.price-label-group').remove();
+
+            const priceLineY = yScale(currentPrice);
+            const priceColor = currentPrice >= lastCandle.open ? '#22c55e' : '#ef4444';
+
+            // Draw price line
+            svg.append('line')
+                .attr('class', 'current-price-line')
+                .attr('x1', 0)
+                .attr('x2', width)
+                .attr('y1', priceLineY)
+                .attr('y2', priceLineY)
+                .attr('stroke', priceColor)
+                .attr('stroke-width', 2)
+                .attr('stroke-dasharray', '5,5')
+                .attr('opacity', 0.8);
+
+            // Add price label with better positioning
+            const priceLabel = svg.append('g')
+                .attr('class', 'price-label-group')
+                .attr('transform', `translate(${width + 25}, ${priceLineY})`);
+
+            // Add background rectangle
+            const labelText = `₹${currentPrice.toFixed(2)}`;
+            const padding = 8;
+            const textWidth = labelText.length * 8 + padding * 2;
+
+            priceLabel.append('rect')
+                .attr('x', -padding)
+                .attr('y', -12)
+                .attr('width', textWidth)
+                .attr('height', 24)
+                .attr('fill', priceColor)
+                .attr('rx', 4)
+                .attr('opacity', 0.9);
+
+            // Add text
+            priceLabel.append('text')
+                .attr('fill', 'white')
+                .attr('font-size', '12px')
+                .attr('font-weight', 'bold')
+                .attr('alignment-baseline', 'middle')
+                .attr('text-anchor', 'start')
+                .text(labelText);
+
+            console.log('Price indicator updated successfully');
+        } catch (error) {
+            console.error('Error updating price indicator:', error);
+        }
+    };
+
     // Set up real-time updates
     useEffect(() => {
         if (isLoading || !selectedStock) return;
@@ -104,7 +184,7 @@ export default function Dashboard() {
                     const stockUpdate = updates.find(u => u.symbol === selectedStock);
 
                     if (stockUpdate) {
-                        // Update current prices
+                        // Update current prices in state
                         setStocks(prevStocks => {
                             return prevStocks.map(stock => {
                                 if (stock.symbol === stockUpdate.symbol) {
@@ -130,9 +210,17 @@ export default function Dashboard() {
                                 dataRef.current[selectedStock] = historicalData.candles;
                                 // Update the chart with new data
                                 updateChart(selectedStock);
+
+                                // IMPORTANT: Update price indicator AFTER chart redraw
+                                // Use setTimeout to ensure it runs after the chart rendering is complete
+                                setTimeout(() => {
+                                    updatePriceIndicator(stockUpdate.price);
+                                }, 50);
                             }
                         } catch (error) {
                             console.error('Error updating historical data:', error);
+                            // Even if chart update fails, try to update price indicator
+                            updatePriceIndicator(stockUpdate.price);
                         }
                     }
                 };
@@ -191,29 +279,28 @@ export default function Dashboard() {
         d3.select(svgRef.current).selectAll('*').remove();
         const data = dataRef.current[symbol];
 
-        // Set up dimensions with better spacing
-        const margin = { top: 30, right: 80, bottom: 120, left: 80 };
+        // Set up dimensions with better spacing for price labels
+        const margin = { top: 30, right: 120, bottom: 120, left: 80 };
 
-        // Base dimensions
-        const baseWidth = 1000;
+        // Calculate optimal candle width based on available space and data length
+        const containerWidth = svgRef.current.clientWidth || 1200;
+        const availableWidth = containerWidth - margin.left - margin.right;
+        const totalCandles = data.length;
+
+        // Calculate candle width to fill the available space
+        const spacing = 2; // Space between candles
+        const candleWidth = Math.max(3, Math.min(20, (availableWidth - (totalCandles * spacing)) / totalCandles));
+
+        // Calculate final width based on candle requirements
+        const width = Math.max(availableWidth, totalCandles * (candleWidth + spacing));
         const height = 400;
         const volumeHeight = 100;
-
-        // Calculate the actual width of each candle
-        const totalCandles = data.length;
-        const minCandleWidth = 5;
-        const maxCandleWidth = 15;
-        let candleWidth = Math.max(minCandleWidth, Math.min(maxCandleWidth, baseWidth / totalCandles - 2));
-
-        // Calculate total width needed
-        const totalWidth = candleWidth * totalCandles * 1.2;  // Add 20% spacing
-        const width = Math.max(baseWidth, totalWidth) - margin.left - margin.right;
 
         const maxPrice = d3.max(data, d => d.high) * 1.001;
         const minPrice = d3.min(data, d => d.low) * 0.999;
         const pricePadding = (maxPrice - minPrice) * 0.05;
 
-        // Create SVG
+        // Create SVG with updated dimensions
         const svg = d3.select(svgRef.current)
             .attr('width', '100%')
             .attr('height', height + margin.top + margin.bottom + volumeHeight)
@@ -222,10 +309,10 @@ export default function Dashboard() {
             .append('g')
             .attr('transform', `translate(${margin.left},${margin.top})`);
 
-        // Create scales
+        // Create scales with better time distribution
         const xScale = d3.scaleTime()
             .domain(d3.extent(data, d => new Date(d.startTime)))
-            .range([0, width]);
+            .range([candleWidth / 2, width - candleWidth / 2]); // Adjust range to center candles
 
         const yScale = d3.scaleLinear()
             .domain([minPrice - pricePadding, maxPrice + pricePadding])
@@ -236,6 +323,9 @@ export default function Dashboard() {
             .domain([0, d3.max(data, d => d.volume) * 1.05])
             .range([volumeHeight, 0])
             .nice();
+
+        // Store scales for price indicator updates
+        scaleRef.current = { xScale, yScale, width, margin };
 
         // Add gradient background
         const gradient = svg.append('defs')
@@ -267,7 +357,7 @@ export default function Dashboard() {
             .attr('class', 'grid')
             .attr('transform', `translate(0,${height})`)
             .call(d3.axisBottom(xScale)
-                .ticks(12)
+                .ticks(Math.min(12, Math.floor(width / 100)))
                 .tickSize(-height)
                 .tickFormat('')
             )
@@ -295,6 +385,7 @@ export default function Dashboard() {
             .attr('transform', `translate(0,${height})`)
             .attr('class', 'text-xs')
             .call(d3.axisBottom(xScale)
+                .ticks(Math.min(12, Math.floor(width / 100)))
                 .tickFormat(d3.timeFormat('%H:%M')))
             .selectAll('text')
             .style('fill', '#9ca3af')
@@ -321,7 +412,7 @@ export default function Dashboard() {
             .attr('font-size', '11px')
             .text('Volume');
 
-        // Draw volume bars
+        // Draw volume bars with consistent spacing
         volumeGroup.selectAll('.volume-bar')
             .data(data)
             .enter()
@@ -335,7 +426,7 @@ export default function Dashboard() {
             .attr('stroke', d => d.close >= d.open ? '#22c55e' : '#ef4444')
             .attr('stroke-width', 0.5);
 
-        // Draw candlesticks
+        // Draw candlesticks with consistent spacing
         const candlesticks = svg.selectAll('.candlestick')
             .data(data)
             .enter()
@@ -384,7 +475,7 @@ export default function Dashboard() {
                         <div>H: ₹${d.high.toFixed(2)}</div>
                         <div>L: ₹${d.low.toFixed(2)}</div>
                         <div>C: ₹${d.close.toFixed(2)}</div>
-                        <div>Vol: ${d.volume}</div>
+                        <div>Vol: ${d.volume.toLocaleString()}</div>
                     </div>
                 `);
         })
@@ -392,45 +483,14 @@ export default function Dashboard() {
                 tooltip.style('display', 'none');
             });
 
-        // Draw current price indicator
-        const currentPrice = stocks.find(s => s.symbol === symbol)?.currentPrice;
+        // Draw current price indicator - this will be called at the end of chart creation
+        const currentStock = stocks.find(s => s.symbol === symbol);
+        const currentPrice = currentStock?.currentPrice;
         if (currentPrice) {
-            const priceLineY = yScale(currentPrice);
-            const lastCandle = data[data.length - 1];
-            const priceColor = currentPrice >= lastCandle.open ? '#22c55e' : '#ef4444';
-
-            // Draw price line
-            svg.append('line')
-                .attr('class', 'current-price-line')
-                .attr('x1', xScale(new Date(lastCandle.startTime)))
-                .attr('x2', width)
-                .attr('y1', priceLineY)
-                .attr('y2', priceLineY)
-                .attr('stroke', priceColor)
-                .attr('stroke-width', 1)
-                .attr('stroke-dasharray', '4,4');
-
-            // Add price label with more padding and background
-            const priceLabel = svg.append('g')
-                .attr('transform', `translate(${width + 10}, ${priceLineY})`);
-
-            // Add background rectangle
-            const labelText = `₹${currentPrice.toFixed(2)}`;
-            const padding = 6;
-            priceLabel.append('rect')
-                .attr('x', -padding)
-                .attr('y', -10)
-                .attr('width', labelText.length * 7 + padding * 2)
-                .attr('height', 20)
-                .attr('fill', '#1f2937')
-                .attr('rx', 4);
-
-            // Add text
-            priceLabel.append('text')
-                .attr('fill', priceColor)
-                .attr('font-size', '12px')
-                .attr('alignment-baseline', 'middle')
-                .text(labelText);
+            // Use setTimeout to ensure the price indicator is drawn after all other elements
+            setTimeout(() => {
+                updatePriceIndicator(currentPrice);
+            }, 10);
         }
     };
 
@@ -491,7 +551,7 @@ export default function Dashboard() {
 
                                 {selectedStock ? (
                                     <div>
-                                        <div className="relative">
+                                        <div className="relative overflow-x-auto">
                                             <svg ref={svgRef} className="w-full h-[600px]" />
                                         </div>
                                         <TradeForm
