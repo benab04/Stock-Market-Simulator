@@ -48,7 +48,7 @@ export async function calculateNewPrice(stock) {
         $push: {
             priceHistory: {
                 $each: [priceHistoryEntry],
-                $slice: -1000 // Keep last 1000 price points
+                $slice: -3600 // Keep last hour of 1-minute price points (60 min * 60 updates)
             }
         }
     });

@@ -6,6 +6,7 @@ import * as d3 from 'd3';
 export default function Dashboard() {
     const svgRef = useRef(null);
     const [selectedStock, setSelectedStock] = useState('ABINFD');
+    const [selectedTimeFrame, setSelectedTimeFrame] = useState('1min');
     const [stocks, setStocks] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -23,7 +24,7 @@ export default function Dashboard() {
     useEffect(() => {
         async function loadHistoricalData() {
             try {
-                const response = await fetch('/api/stockHistory');
+                const response = await fetch(`/api/stockHistory?timeframe=${selectedTimeFrame}`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch historical data');
                 }
@@ -56,7 +57,7 @@ export default function Dashboard() {
         }
 
         loadHistoricalData();
-    }, []); // Run once on component mount
+    }, [selectedStock, selectedTimeFrame]); // Reload when timeframe changes
 
     // Set up real-time updates only after historical data is loaded
     useEffect(() => {
@@ -69,9 +70,37 @@ export default function Dashboard() {
             const updates = JSON.parse(event.data);
             console.log('Received updates:', updates);
 
-            // Update data for all stocks
+            // Update data for all stocks based on selected timeframe
+            const maxEntries = selectedTimeFrame === '1min' ? 20 :
+                selectedTimeFrame === '5min' ? 100 :
+                    selectedTimeFrame === '30min' ? 300 : 600;
+
             updates.forEach(update => {
-                dataRef.current[update.symbol] = [...(dataRef.current[update.symbol] || []), update.priceHistory].slice(-20);
+                const currentData = dataRef.current[update.symbol] || [];
+                const newData = [...currentData, update.priceHistory];
+
+                if (selectedTimeFrame !== '1min') {
+                    // Group data points based on timeframe
+                    const groupSize = selectedTimeFrame === '5min' ? 5 :
+                        selectedTimeFrame === '30min' ? 30 : 60;
+
+                    if (newData.length >= groupSize) {
+                        const group = newData.slice(-groupSize);
+                        const aggregatedPoint = {
+                            timestamp: group[0].timestamp,
+                            open: group[0].open,
+                            high: Math.max(...group.map(g => g.high)),
+                            low: Math.min(...group.map(g => g.low)),
+                            close: group[group.length - 1].close,
+                            volume: group.reduce((sum, g) => sum + g.volume, 0)
+                        };
+                        dataRef.current[update.symbol] = [...newData.slice(0, -groupSize), aggregatedPoint].slice(-maxEntries);
+                    } else {
+                        dataRef.current[update.symbol] = newData.slice(-maxEntries);
+                    }
+                } else {
+                    dataRef.current[update.symbol] = newData.slice(-maxEntries);
+                }
             });
 
             // Update stocks list if needed
@@ -104,7 +133,13 @@ export default function Dashboard() {
 
         // Set up dimensions with better spacing
         const margin = { top: 30, right: 80, bottom: 120, left: 80 };
-        const width = 1000 - margin.left - margin.right;
+        // Adjust width based on timeframe
+        const baseWidth = 1000;
+        const widthMultiplier = selectedTimeFrame === '1min' ? 1 :
+            selectedTimeFrame === '5min' ? 1.5 :
+                selectedTimeFrame === '30min' ? 2 :
+                    2.5; // 1hr
+        const width = (baseWidth * widthMultiplier) - margin.left - margin.right;
         const height = 500 - margin.top - margin.bottom;
         const volumeHeight = 100;
 
@@ -233,15 +268,18 @@ export default function Dashboard() {
             .attr('font-size', '11px')
             .text('Volume');
 
-        // Calculate optimal bar width based on data points
-        const barWidth = Math.max(4, (width / data.length) * 0.8);
+        // Calculate optimal bar width based on timeframe
+        const timeframeWidthMultiplier = selectedTimeFrame === '1min' ? 1 :
+            selectedTimeFrame === '5min' ? 1.2 :
+                selectedTimeFrame === '30min' ? 1.5 : 2;
+        const barWidth = Math.max(4, (width / data.length) * 0.8 * timeframeWidthMultiplier);
 
         volumeGroup.selectAll('.volume-bar')
             .data(data)
             .enter()
             .append('rect')
             .attr('class', 'volume-bar')
-            .attr('x', d => xScale(new Date(d.timestamp)) - barWidth/2)
+            .attr('x', d => xScale(new Date(d.timestamp)) - barWidth / 2)
             .attr('y', d => volumeScale(d.volume))
             .attr('width', barWidth)
             .attr('height', d => volumeHeight - volumeScale(d.volume))
@@ -269,8 +307,8 @@ export default function Dashboard() {
             });
 
         // Draw professional candlesticks
-        // Calculate optimal candle width based on data points
-        const candleWidth = Math.max(6, (width / data.length) * 0.7);
+        // Calculate optimal candle width based on data points and timeframe
+        const candleWidth = Math.max(6, (width / data.length) * 0.7 * timeframeWidthMultiplier);
         const candlesticks = svg.selectAll('.candlestick')
             .data(data)
             .enter()
@@ -290,7 +328,7 @@ export default function Dashboard() {
         // Draw bodies with professional styling
         candlesticks.append('rect')
             .attr('class', 'candle')
-            .attr('x', d => xScale(new Date(d.timestamp)) - candleWidth/2)
+            .attr('x', d => xScale(new Date(d.timestamp)) - candleWidth / 2)
             .attr('y', d => yScale(Math.max(d.open, d.close)))
             .attr('width', candleWidth)
             .attr('height', d => Math.max(Math.abs(yScale(d.open) - yScale(d.close)), 1))
@@ -415,6 +453,36 @@ export default function Dashboard() {
         const value = parseInt(e.target.value) || 1;
         setTradeQuantity(Math.max(1, value));
     };
+
+    // Add time period selection buttons
+    const timeFrameButtons = (
+        <div className="flex space-x-2 mb-4">
+            <button
+                className={`px-4 py-2 rounded ${selectedTimeFrame === '1min' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+                onClick={() => setSelectedTimeFrame('1min')}
+            >
+                1 Min
+            </button>
+            <button
+                className={`px-4 py-2 rounded ${selectedTimeFrame === '5min' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+                onClick={() => setSelectedTimeFrame('5min')}
+            >
+                5 Min
+            </button>
+            <button
+                className={`px-4 py-2 rounded ${selectedTimeFrame === '30min' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+                onClick={() => setSelectedTimeFrame('30min')}
+            >
+                30 Min
+            </button>
+            <button
+                className={`px-4 py-2 rounded ${selectedTimeFrame === '1hr' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+                onClick={() => setSelectedTimeFrame('1hr')}
+            >
+                1 Hour
+            </button>
+        </div>
+    );
 
     return (
         <div className="min-h-screen bg-gray-900 p-8">
@@ -545,6 +613,7 @@ export default function Dashboard() {
                                         </div>
                                     </div>
                                 </div>
+                                {timeFrameButtons}
                                 <div className="relative">
                                     <svg ref={svgRef} className="w-full" />
                                 </div>
