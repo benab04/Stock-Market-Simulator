@@ -123,17 +123,16 @@ export default function Dashboard() {
             .style('pointer-events', 'none')
             .style('z-index', 100);
 
-        // Calculate professional price range with 2% padding
+        // Calculate absolute price range with 2-point padding
         const allPrices = data.reduce((prices, d) => {
             prices.push(d.low, d.high);
             return prices;
         }, []);
         const minPrice = Math.min(...allPrices);
         const maxPrice = Math.max(...allPrices);
-        const priceRange = maxPrice - minPrice;
-        const pricePadding = priceRange * 0.02; // 2% padding
+        const pricePadding = 2; // Fixed 2-point padding
 
-        // Set up scales with professional padding
+        // Set up scales with fixed padding
         const xScale = d3.scaleTime()
             .domain(d3.extent(data, d => new Date(d.timestamp)))
             .range([0, width])
