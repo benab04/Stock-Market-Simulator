@@ -103,15 +103,17 @@ export default function Dashboard() {
         const data = dataRef.current[symbol];
 
         // Set up dimensions with better spacing
-        const margin = { top: 20, right: 60, bottom: 100, left: 80 };
+        const margin = { top: 30, right: 80, bottom: 120, left: 80 };
         const width = 1000 - margin.left - margin.right;
         const height = 500 - margin.top - margin.bottom;
-        const volumeHeight = 80;
+        const volumeHeight = 100;
 
-        // Create SVG with better dimensions
+        // Create SVG with responsive dimensions
         const svg = d3.select(svgRef.current)
-            .attr('width', width + margin.left + margin.right)
+            .attr('width', '100%')
             .attr('height', height + margin.top + margin.bottom + volumeHeight)
+            .attr('viewBox', `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom + volumeHeight}`)
+            .attr('preserveAspectRatio', 'xMidYMid meet')
             .append('g')
             .attr('transform', `translate(${margin.left},${margin.top})`);
 
@@ -121,24 +123,29 @@ export default function Dashboard() {
             .style('pointer-events', 'none')
             .style('z-index', 100);
 
-        // Calculate price range with padding
-        const priceExtent = d3.extent(data, d => [d.low, d.high]).flat();
-        const priceRange = priceExtent[1] - priceExtent[0];
-        const pricePadding = priceRange * 0.1;
+        // Calculate professional price range with 2% padding
+        const allPrices = data.reduce((prices, d) => {
+            prices.push(d.low, d.high);
+            return prices;
+        }, []);
+        const minPrice = Math.min(...allPrices);
+        const maxPrice = Math.max(...allPrices);
+        const priceRange = maxPrice - minPrice;
+        const pricePadding = priceRange * 0.02; // 2% padding
 
-        // Set up scales with better padding
+        // Set up scales with professional padding
         const xScale = d3.scaleTime()
             .domain(d3.extent(data, d => new Date(d.timestamp)))
             .range([0, width])
-            .nice();
+            .nice(d3.timeMinute.every(5));
 
         const yScale = d3.scaleLinear()
-            .domain([priceExtent[0] - pricePadding, priceExtent[1] + pricePadding])
+            .domain([minPrice - pricePadding, maxPrice + pricePadding])
             .range([height, 0])
             .nice();
 
         const volumeScale = d3.scaleLinear()
-            .domain([0, d3.max(data, d => d.volume) * 1.1])
+            .domain([0, d3.max(data, d => d.volume) * 1.05])
             .range([volumeHeight, 0])
             .nice();
 
@@ -167,31 +174,33 @@ export default function Dashboard() {
             .attr('height', height)
             .attr('fill', 'url(#chart-gradient)');
 
-        // Add grid lines with better styling
+        // Add professional grid lines
         svg.append('g')
             .attr('class', 'grid')
             .attr('transform', `translate(0,${height})`)
             .call(d3.axisBottom(xScale)
-                .ticks(10)
+                .ticks(12)
                 .tickSize(-height)
                 .tickFormat('')
             )
             .call(g => g.select('.domain').remove())
             .call(g => g.selectAll('.tick line')
-                .attr('stroke', '#374151')
-                .attr('stroke-dasharray', '2,2'));
+                .attr('stroke', '#1f2937')
+                .attr('stroke-opacity', 0.1)
+                .attr('stroke-width', 1));
 
         svg.append('g')
             .attr('class', 'grid')
             .call(d3.axisLeft(yScale)
-                .ticks(10)
+                .ticks(8)
                 .tickSize(-width)
                 .tickFormat('')
             )
             .call(g => g.select('.domain').remove())
             .call(g => g.selectAll('.tick line')
-                .attr('stroke', '#374151')
-                .attr('stroke-dasharray', '2,2'));
+                .attr('stroke', '#1f2937')
+                .attr('stroke-opacity', 0.1)
+                .attr('stroke-width', 1));
 
         // Add axes with better styling
         svg.append('g')
@@ -212,57 +221,83 @@ export default function Dashboard() {
             .selectAll('text')
             .style('fill', '#9ca3af');
 
-        // Draw volume bars with better styling
+        // Draw volume bars with professional styling
         const volumeGroup = svg.append('g')
-            .attr('transform', `translate(0,${height + 20})`);
+            .attr('transform', `translate(0,${height + 40})`);
+
+        // Add volume title
+        volumeGroup.append('text')
+            .attr('x', -margin.left)
+            .attr('y', -10)
+            .attr('fill', '#9ca3af')
+            .attr('font-size', '11px')
+            .text('Volume');
+
+        // Calculate optimal bar width based on data points
+        const barWidth = Math.max(4, (width / data.length) * 0.8);
 
         volumeGroup.selectAll('.volume-bar')
             .data(data)
             .enter()
             .append('rect')
             .attr('class', 'volume-bar')
-            .attr('x', d => xScale(new Date(d.timestamp)) - 4)
+            .attr('x', d => xScale(new Date(d.timestamp)) - barWidth/2)
             .attr('y', d => volumeScale(d.volume))
-            .attr('width', 8)
+            .attr('width', barWidth)
             .attr('height', d => volumeHeight - volumeScale(d.volume))
-            .attr('fill', d => d.open > d.close ? '#ef444480' : '#22c55e80')
-            .attr('rx', 2); // Rounded corners
+            .attr('fill', d => d.open > d.close ? '#ef444440' : '#22c55e40')
+            .attr('stroke', d => d.open > d.close ? '#ef4444' : '#22c55e')
+            .attr('stroke-width', 0.5)
+            .attr('rx', 1);
 
-        // Volume axis with better styling
+        // Volume axis with professional styling
         volumeGroup.append('g')
-            .attr('class', 'text-xs')
+            .attr('class', 'axis volume-axis')
             .call(d3.axisLeft(volumeScale)
                 .ticks(3)
                 .tickFormat(d => d3.format('.2s')(d)))
-            .selectAll('text')
-            .style('fill', '#9ca3af');
+            .call(g => {
+                g.selectAll('text')
+                    .style('fill', '#9ca3af')
+                    .style('font-size', '10px');
+                g.selectAll('line')
+                    .style('stroke', '#4b5563')
+                    .style('stroke-width', '0.5px');
+                g.select('.domain')
+                    .style('stroke', '#4b5563')
+                    .style('stroke-width', '0.5px');
+            });
 
-        // Draw candlesticks with better styling
+        // Draw professional candlesticks
+        // Calculate optimal candle width based on data points
+        const candleWidth = Math.max(6, (width / data.length) * 0.7);
         const candlesticks = svg.selectAll('.candlestick')
             .data(data)
             .enter()
             .append('g')
             .attr('class', 'candlestick');
 
-        // Draw wicks with better styling
+        // Draw wicks with professional styling
         candlesticks.append('line')
+            .attr('class', 'wick')
             .attr('x1', d => xScale(new Date(d.timestamp)))
             .attr('x2', d => xScale(new Date(d.timestamp)))
             .attr('y1', d => yScale(d.high))
             .attr('y2', d => yScale(d.low))
             .attr('stroke', d => d.open > d.close ? '#ef4444' : '#22c55e')
-            .attr('stroke-width', 1.5);
+            .attr('stroke-width', 1);
 
-        // Draw bodies with better styling
+        // Draw bodies with professional styling
         candlesticks.append('rect')
-            .attr('x', d => xScale(new Date(d.timestamp)) - 5)
+            .attr('class', 'candle')
+            .attr('x', d => xScale(new Date(d.timestamp)) - candleWidth/2)
             .attr('y', d => yScale(Math.max(d.open, d.close)))
-            .attr('width', 10)
-            .attr('height', d => Math.abs(yScale(d.open) - yScale(d.close)) || 1)
+            .attr('width', candleWidth)
+            .attr('height', d => Math.max(Math.abs(yScale(d.open) - yScale(d.close)), 1))
             .attr('fill', d => d.open > d.close ? '#ef4444' : '#22c55e')
-            .attr('stroke', d => d.open > d.close ? '#ef4444' : '#22c55e')
+            .attr('stroke', d => d.open > d.close ? '#dc2626' : '#16a34a')
             .attr('stroke-width', 1)
-            .attr('rx', 1) // Slightly rounded corners
+            .attr('rx', 0.5) // Subtle rounded corners
             .on('mouseover', (event, d) => {
                 tooltip.transition()
                     .duration(200)
@@ -412,18 +447,16 @@ export default function Dashboard() {
                                     {stocks.map(stock => (
                                         <div
                                             key={stock.symbol}
-                                            className={`p-4 rounded-lg cursor-pointer transition-all ${
-                                                selectedStock === stock.symbol
-                                                    ? 'bg-gray-700 border border-blue-500'
-                                                    : 'bg-gray-750 hover:bg-gray-700'
-                                            }`}
+                                            className={`p-4 rounded-lg cursor-pointer transition-all ${selectedStock === stock.symbol
+                                                ? 'bg-gray-700 border border-blue-500'
+                                                : 'bg-gray-750 hover:bg-gray-700'
+                                                }`}
                                             onClick={() => setSelectedStock(stock.symbol)}
                                         >
                                             <div className="flex justify-between items-center">
                                                 <h3 className="text-lg font-semibold text-white">{stock.symbol}</h3>
-                                                <span className={`text-sm px-2 py-1 rounded ${
-                                                    stock.netOrderQuantity >= 0 ? 'text-green-400' : 'text-red-400'
-                                                }`}>
+                                                <span className={`text-sm px-2 py-1 rounded ${stock.netOrderQuantity >= 0 ? 'text-green-400' : 'text-red-400'
+                                                    }`}>
                                                     {stock.netOrderQuantity > 0 ? '+' : ''}{stock.netOrderQuantity}
                                                 </span>
                                             </div>
@@ -527,7 +560,7 @@ export default function Dashboard() {
                             <h3 className="text-xl font-bold text-white mb-4">
                                 {tradeModal.type === 'BUY' ? 'Buy' : 'Sell'} {selectedStock}
                             </h3>
-                            
+
                             {tradeError && (
                                 <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-2 rounded mb-4">
                                     {tradeError}
@@ -552,11 +585,10 @@ export default function Dashboard() {
                                                 <button
                                                     key={qty}
                                                     onClick={() => setTradeQuantity(qty)}
-                                                    className={`px-2 py-1 rounded text-sm ${
-                                                        tradeQuantity === qty 
-                                                            ? 'bg-blue-600 text-white' 
-                                                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                                                    }`}
+                                                    className={`px-2 py-1 rounded text-sm ${tradeQuantity === qty
+                                                        ? 'bg-blue-600 text-white'
+                                                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                                        }`}
                                                 >
                                                     {qty}
                                                 </button>
@@ -591,11 +623,10 @@ export default function Dashboard() {
                                 <button
                                     onClick={() => handleTrade(tradeModal.type)}
                                     disabled={tradeLoading}
-                                    className={`px-6 py-2 rounded-lg ${
-                                        tradeModal.type === 'BUY'
-                                            ? 'bg-green-600 hover:bg-green-700'
-                                            : 'bg-red-600 hover:bg-red-700'
-                                    } text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
+                                    className={`px-6 py-2 rounded-lg ${tradeModal.type === 'BUY'
+                                        ? 'bg-green-600 hover:bg-green-700'
+                                        : 'bg-red-600 hover:bg-red-700'
+                                        } text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
                                 >
                                     {tradeLoading
                                         ? 'Processing...'
