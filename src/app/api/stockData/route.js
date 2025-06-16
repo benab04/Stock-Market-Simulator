@@ -5,14 +5,20 @@ export async function GET() {
     await dbConnect();
 
     const encoder = new TextEncoder();
+    let isStreamClosed = false;
+
     const customReadable = new ReadableStream({
         start(controller) {
             // Function to handle updates from the market worker
             const handleUpdate = (updates) => {
                 try {
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify(updates)}\n\n`));
+                    if (!isStreamClosed) {
+                        controller.enqueue(encoder.encode(`data: ${JSON.stringify(updates)}\n\n`));
+                    }
                 } catch (error) {
-                    console.error('Error sending data:', error);
+                    if (error.code !== 'ERR_INVALID_STATE') {
+                        console.error('Error sending data:', error);
+                    }
                 }
             };
 
@@ -26,8 +32,12 @@ export async function GET() {
 
             // Cleanup function
             return () => {
+                isStreamClosed = true;
                 removeListener();
             };
+        },
+        cancel() {
+            isStreamClosed = true;
         }
     });
 

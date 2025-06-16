@@ -18,6 +18,8 @@ export const config = {
         "/dashboard/:path*",
         "/api/stockData",
         "/api/stockHistory",
-        "/api/orders/:path*"
+        "/api/orders/:path*",
+        "/api/trade",
+        "/api/user/:path*"
     ]
 }; 

@@ -19,8 +19,8 @@ export async function getCurrentUser() {
 }
 
 // Middleware to protect API routes
-export async function withAuth(handler) {
-    return async (req, res) => {
+export function withAuth(handler) {
+    return async (request) => {
         try {
             const session = await getAuthSession();
 
@@ -31,9 +31,10 @@ export async function withAuth(handler) {
                 });
             }
 
-            // Add user to the request object
-            req.user = session.user;
-            return handler(req, res);
+            // Add user to the context
+            const ctx = { user: session.user };
+            const enhancedRequest = Object.assign(request, { ctx });
+            return handler(enhancedRequest);
         } catch (error) {
             console.error('Auth middleware error:', error);
             return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
@@ -42,4 +43,4 @@ export async function withAuth(handler) {
             });
         }
     };
-} 
+}

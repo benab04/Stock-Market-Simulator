@@ -10,6 +10,14 @@ export default function Dashboard() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const dataRef = useRef({});
+    const [tradeModal, setTradeModal] = useState({
+        isOpen: false,
+        type: null, // 'BUY' or 'SELL'
+    });
+    const [tradeQuantity, setTradeQuantity] = useState(1);
+    const [tradeError, setTradeError] = useState('');
+    const [tradeLoading, setTradeLoading] = useState(false);
+    const [userBalance, setUserBalance] = useState(0);
 
     // Load historical data first
     useEffect(() => {
@@ -303,10 +311,85 @@ export default function Dashboard() {
             .attr('d', line);
     };
 
+    // Effect to fetch user balance
+    useEffect(() => {
+        async function fetchBalance() {
+            try {
+                const response = await fetch('/api/user/balance');
+                if (!response.ok) throw new Error('Failed to fetch balance');
+                const data = await response.json();
+                setUserBalance(data.balance);
+            } catch (error) {
+                console.error('Error fetching balance:', error);
+            }
+        }
+        fetchBalance();
+    }, []);
+
+    const handleTrade = async (type) => {
+        setTradeError('');
+        setTradeLoading(true);
+
+        try {
+            const selectedStockData = stocks.find(s => s.symbol === selectedStock);
+            if (!selectedStockData) {
+                throw new Error('Selected stock not found');
+            }
+
+            const response = await fetch('/api/trade', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    stockSymbol: selectedStock,
+                    quantity: tradeQuantity,
+                    type: type
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Trade failed');
+            }
+
+            // Update user balance
+            setUserBalance(data.newBalance);
+
+            // Close modal
+            setTradeModal({ isOpen: false, type: null });
+            setTradeQuantity(1);
+
+            // Show success message
+            alert('Trade executed successfully!');
+        } catch (error) {
+            setTradeError(error.message);
+        } finally {
+            setTradeLoading(false);
+        }
+    };
+
+    // Function to calculate total cost
+    const calculateTotal = () => {
+        const stock = stocks.find(s => s.symbol === selectedStock);
+        return stock ? (stock.currentPrice * tradeQuantity).toFixed(2) : '0.00';
+    };
+
+    const handleQuantityChange = (e) => {
+        const value = parseInt(e.target.value) || 1;
+        setTradeQuantity(Math.max(1, value));
+    };
+
     return (
         <div className="min-h-screen bg-gray-900 p-8">
             <div className="max-w-7xl mx-auto">
-                <h1 className="text-3xl font-bold text-white mb-8">Stock Price Dashboard</h1>
+                <div className="flex justify-between items-center mb-8">
+                    <h1 className="text-3xl font-bold text-white">Stock Price Dashboard</h1>
+                    <div className="text-white">
+                        Balance: ₹{userBalance.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                    </div>
+                </div>
 
                 {isLoading ? (
                     <div className="flex justify-center items-center h-64">
@@ -323,9 +406,10 @@ export default function Dashboard() {
                             {stocks.map(stock => (
                                 <div
                                     key={stock.symbol}
-                                    className={`p-4 rounded-lg cursor-pointer transition-all ${selectedStock === stock.symbol
-                                        ? 'bg-gray-700 border-2 border-blue-500'
-                                        : 'bg-gray-800 hover:bg-gray-750'
+                                    className={`p-4 rounded-lg cursor-pointer transition-all 
+                                        ${selectedStock === stock.symbol
+                                            ? 'bg-gray-700 border-2 border-blue-500'
+                                            : 'bg-gray-800 hover:bg-gray-750'
                                         }`}
                                     onClick={() => setSelectedStock(stock.symbol)}
                                 >
@@ -338,6 +422,26 @@ export default function Dashboard() {
                                     <p className="text-2xl font-bold text-white mt-2">
                                         ₹{stock.currentPrice.toFixed(2)}
                                     </p>
+                                    <div className="flex justify-between mt-4">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setTradeModal({ isOpen: true, type: 'BUY' });
+                                            }}
+                                            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+                                        >
+                                            Buy
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setTradeModal({ isOpen: true, type: 'SELL' });
+                                            }}
+                                            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+                                        >
+                                            Sell
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -362,9 +466,75 @@ export default function Dashboard() {
                                 <svg ref={svgRef} className="w-full" />
                             </div>
                         </div>
+
+                        {/* Trade Modal */}
+                        {tradeModal.isOpen && (
+                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+                                <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full">
+                                    <h3 className="text-xl font-bold text-white mb-4">
+                                        {tradeModal.type === 'BUY' ? 'Buy' : 'Sell'} {selectedStock}
+                                    </h3>
+
+                                    {tradeError && (
+                                        <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-2 rounded mb-4">
+                                            {tradeError}
+                                        </div>
+                                    )}
+
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-400 mb-1">
+                                                Quantity
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                value={tradeQuantity}
+                                                onChange={handleQuantityChange}
+                                                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-400 mb-1">
+                                                Total Cost
+                                            </label>
+                                            <div className="text-xl font-bold text-white">
+                                                ₹{calculateTotal()}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-end space-x-4 mt-6">
+                                        <button
+                                            onClick={() => {
+                                                setTradeModal({ isOpen: false, type: null });
+                                                setTradeQuantity(1);
+                                                setTradeError('');
+                                            }}
+                                            className="px-4 py-2 text-gray-400 hover:text-white"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={() => handleTrade(tradeModal.type)}
+                                            disabled={tradeLoading}
+                                            className={`px-4 py-2 rounded ${tradeModal.type === 'BUY'
+                                                    ? 'bg-green-600 hover:bg-green-700'
+                                                    : 'bg-red-600 hover:bg-red-700'
+                                                } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
+                                        >
+                                            {tradeLoading
+                                                ? 'Processing...'
+                                                : `${tradeModal.type === 'BUY' ? 'Buy' : 'Sell'} Shares`}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </>
                 )}
             </div>
         </div>
     );
-} 
+}
