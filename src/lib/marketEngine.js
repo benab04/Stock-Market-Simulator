@@ -32,33 +32,22 @@ export async function calculateNewPrice(stock) {
     if (priceChange > maxChange) finalPrice = stock.currentPrice * maxChange;
     if (priceChange < minChange) finalPrice = stock.currentPrice * minChange;
 
-    // Create price history entry
-    const priceHistoryEntry = {
-        timestamp: new Date(),
-        open: stock.currentPrice,
-        high: Math.max(stock.currentPrice, finalPrice),
-        low: Math.min(stock.currentPrice, finalPrice),
-        close: finalPrice,
-        volume: orders.reduce((acc, order) => acc + order.quantity, 0)
-    };
+    const timestamp = new Date();
 
     // Update stock with new price and add to price history
     await Stock.findByIdAndUpdate(stock._id, {
-        $set: { currentPrice: finalPrice, lastUpdated: new Date() },
-        $push: {
-            priceHistory: {
-                $each: [priceHistoryEntry],
-                $slice: -3600 // Keep last hour of 1-minute price points (60 min * 60 updates)
-            }
+        $set: {
+            currentPrice: finalPrice,
+            lastUpdated: timestamp
         }
     });
 
     return {
+        _id: stock._id, // Add _id for candlestick aggregation
         symbol: stock.symbol,
         price: finalPrice,
-        priceHistory: priceHistoryEntry,
         netOrderQuantity: Q,
-        timestamp: new Date()
+        timestamp // Add timestamp for candlestick timestamps
     };
 }
 
@@ -76,4 +65,4 @@ export async function updateAllStockPrices() {
     }
 
     return updates;
-} 
+}

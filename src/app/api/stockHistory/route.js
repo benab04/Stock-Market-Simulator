@@ -5,44 +5,87 @@ export async function GET(request) {
     try {
         await dbConnect();
         const { searchParams } = new URL(request.url);
-        const timeframe = searchParams.get('timeframe') || '1min';
+        const symbol = searchParams.get('symbol');
+        const timeframe = searchParams.get('timeframe') || '5min';
 
-        // Calculate time window for filtering data
-        const now = new Date();
-        const timeWindow = {
-            '1min': 60 * 1000,            // 1 minute in milliseconds
-            '5min': 5 * 60 * 1000,        // 5 minutes
-            '30min': 30 * 60 * 1000,      // 30 minutes
-            '1hr': 60 * 60 * 1000         // 1 hour
-        }[timeframe] || 60 * 1000;        // default to 1 min
+        if (!symbol) {
+            return Response.json(
+                { error: 'Symbol parameter is required' },
+                { status: 400 }
+            );
+        }
 
-        const startTime = new Date(now.getTime() - timeWindow);
+        // Get the stock with its historical data
+        const stock = await Stock.findOne(
+            { symbol },
+            { symbol: 1, currentPrice: 1, priceHistory: 1 }
+        );
 
-        // Get stocks with their historical entries based on timeframe
-        const stocks = await Stock.aggregate([
-            {
-                $project: {
-                    symbol: 1,
-                    currentPrice: 1,
-                    priceHistory: {
-                        $filter: {
-                            input: '$priceHistory',
-                            as: 'item',
-                            cond: { $gte: ['$$item.timestamp', startTime] }
-                        }
+        if (!stock) {
+            return Response.json(
+                { error: 'Stock not found' },
+                { status: 404 }
+            );
+        }
+
+        let candles = [];
+        const priceHistory = stock.priceHistory || [];
+
+        // Group price history into candles based on timeframe
+        if (priceHistory.length > 0) {
+            const interval = timeframe === '5min' ? 5 :
+                timeframe === '30min' ? 30 : 120; // 2 hours
+
+            // Sort price history by timestamp
+            priceHistory.sort((a, b) => a.timestamp - b.timestamp);
+
+            // Group into candles
+            let currentCandle = null;
+            let currentTime = null;
+
+            for (const price of priceHistory) {
+                const time = new Date(price.timestamp);
+                const minutes = time.getHours() * 60 + time.getMinutes();
+                const candleStart = Math.floor(minutes / interval) * interval;
+                const startTime = new Date(time);
+                startTime.setHours(Math.floor(candleStart / 60));
+                startTime.setMinutes(candleStart % 60);
+                startTime.setSeconds(0);
+                startTime.setMilliseconds(0);
+
+                if (!currentTime || startTime.getTime() !== currentTime.getTime()) {
+                    if (currentCandle) {
+                        candles.push(currentCandle);
                     }
+                    currentTime = startTime;
+                    const endTime = new Date(startTime.getTime() + interval * 60 * 1000);
+                    currentCandle = {
+                        startTime: startTime.toISOString(),
+                        endTime: endTime.toISOString(),
+                        open: price.price,
+                        high: price.price,
+                        low: price.price,
+                        close: price.price,
+                        volume: 1
+                    };
+                } else {
+                    currentCandle.high = Math.max(currentCandle.high, price.price);
+                    currentCandle.low = Math.min(currentCandle.low, price.price);
+                    currentCandle.close = price.price;
+                    currentCandle.volume += 1;
                 }
             }
-        ]);
 
-        // Format the data without time-based aggregation
-        const formattedData = stocks.map(stock => ({
+            if (currentCandle) {
+                candles.push(currentCandle);
+            }
+        }
+
+        return Response.json({
             symbol: stock.symbol,
             currentPrice: stock.currentPrice,
-            priceHistory: stock.priceHistory || []
-        }));
-
-        return Response.json(formattedData);
+            candles
+        });
     } catch (error) {
         console.error('Error fetching historical data:', error);
         return Response.json(
