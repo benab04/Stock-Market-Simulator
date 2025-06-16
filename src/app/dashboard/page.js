@@ -386,8 +386,11 @@ export default function Dashboard() {
             <div className="max-w-7xl mx-auto">
                 <div className="flex justify-between items-center mb-8">
                     <h1 className="text-3xl font-bold text-white">Stock Price Dashboard</h1>
-                    <div className="text-white">
-                        Balance: ₹{userBalance.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                    <div className="px-4 py-2 bg-gray-800 rounded-lg">
+                        <span className="text-gray-400 mr-2">Balance:</span>
+                        <span className="text-white font-semibold">
+                            ₹{userBalance.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                        </span>
                     </div>
                 </div>
 
@@ -400,139 +403,207 @@ export default function Dashboard() {
                         Error: {error}
                     </div>
                 ) : (
-                    <>
-                        {/* Stock Selection and Info */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                            {stocks.map(stock => (
-                                <div
-                                    key={stock.symbol}
-                                    className={`p-4 rounded-lg cursor-pointer transition-all 
-                                        ${selectedStock === stock.symbol
-                                            ? 'bg-gray-700 border-2 border-blue-500'
-                                            : 'bg-gray-800 hover:bg-gray-750'
-                                        }`}
-                                    onClick={() => setSelectedStock(stock.symbol)}
-                                >
-                                    <div className="flex justify-between items-center">
-                                        <h3 className="text-lg font-semibold text-white">{stock.symbol}</h3>
-                                        <span className={`text-sm ${stock.netOrderQuantity >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                            Net Orders: {stock.netOrderQuantity}
-                                        </span>
-                                    </div>
-                                    <p className="text-2xl font-bold text-white mt-2">
-                                        ₹{stock.currentPrice.toFixed(2)}
-                                    </p>
-                                    <div className="flex justify-between mt-4">
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setTradeModal({ isOpen: true, type: 'BUY' });
-                                            }}
-                                            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+                    <div className="grid grid-cols-12 gap-6">
+                        {/* Stock List - Left Column */}
+                        <div className="col-span-12 lg:col-span-3 space-y-4">
+                            <div className="bg-gray-800 rounded-lg p-4">
+                                <h2 className="text-lg font-semibold text-white mb-4">Stocks</h2>
+                                <div className="space-y-2">
+                                    {stocks.map(stock => (
+                                        <div
+                                            key={stock.symbol}
+                                            className={`p-4 rounded-lg cursor-pointer transition-all ${
+                                                selectedStock === stock.symbol
+                                                    ? 'bg-gray-700 border border-blue-500'
+                                                    : 'bg-gray-750 hover:bg-gray-700'
+                                            }`}
+                                            onClick={() => setSelectedStock(stock.symbol)}
                                         >
-                                            Buy
-                                        </button>
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setTradeModal({ isOpen: true, type: 'SELL' });
-                                            }}
-                                            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
-                                        >
-                                            Sell
-                                        </button>
-                                    </div>
+                                            <div className="flex justify-between items-center">
+                                                <h3 className="text-lg font-semibold text-white">{stock.symbol}</h3>
+                                                <span className={`text-sm px-2 py-1 rounded ${
+                                                    stock.netOrderQuantity >= 0 ? 'text-green-400' : 'text-red-400'
+                                                }`}>
+                                                    {stock.netOrderQuantity > 0 ? '+' : ''}{stock.netOrderQuantity}
+                                                </span>
+                                            </div>
+                                            <p className="text-2xl font-bold text-white mt-2">
+                                                ₹{stock.currentPrice.toFixed(2)}
+                                            </p>
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
-
-                        {/* Chart Container */}
-                        <div className="bg-gray-800 rounded-lg p-6 shadow-xl">
-                            <div className="flex justify-between items-center mb-4">
-                                <h2 className="text-xl text-white">Real-time Candlestick Chart</h2>
-                                <div className="flex items-center space-x-4">
-                                    <div className="flex items-center">
-                                        <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                                        <span className="text-gray-400 text-sm">Bullish</span>
-                                    </div>
-                                    <div className="flex items-center">
-                                        <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
-                                        <span className="text-gray-400 text-sm">Bearish</span>
-                                    </div>
-                                    <p className="text-gray-400 text-sm">Updates every 30 seconds</p>
-                                </div>
-                            </div>
-                            <div className="relative">
-                                <svg ref={svgRef} className="w-full" />
                             </div>
                         </div>
 
-                        {/* Trade Modal */}
-                        {tradeModal.isOpen && (
-                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-                                <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full">
-                                    <h3 className="text-xl font-bold text-white mb-4">
-                                        {tradeModal.type === 'BUY' ? 'Buy' : 'Sell'} {selectedStock}
-                                    </h3>
+                        {/* Main Content - Right Column */}
+                        <div className="col-span-12 lg:col-span-9 space-y-6">
+                            {/* Trade Panel */}
+                            <div className="bg-gray-800 rounded-lg p-6">
+                                {selectedStock ? (
+                                    <>
+                                        <div className="grid grid-cols-2 gap-6 mb-6">
+                                            {/* Stock Info */}
+                                            <div className="space-y-4">
+                                                <h2 className="text-2xl font-bold text-white">{selectedStock}</h2>
+                                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                                    <div className="bg-gray-700 p-3 rounded-lg">
+                                                        <div className="text-gray-400">Current Price</div>
+                                                        <div className="text-xl font-bold text-white">
+                                                            ₹{stocks.find(s => s.symbol === selectedStock)?.currentPrice.toFixed(2)}
+                                                        </div>
+                                                    </div>
+                                                    <div className="bg-gray-700 p-3 rounded-lg">
+                                                        <div className="text-gray-400">Net Orders</div>
+                                                        <div className="text-xl font-bold text-white">
+                                                            {stocks.find(s => s.symbol === selectedStock)?.netOrderQuantity}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
 
-                                    {tradeError && (
-                                        <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-2 rounded mb-4">
-                                            {tradeError}
-                                        </div>
-                                    )}
-
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-400 mb-1">
-                                                Quantity
-                                            </label>
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                value={tradeQuantity}
-                                                onChange={handleQuantityChange}
-                                                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-400 mb-1">
-                                                Total Cost
-                                            </label>
-                                            <div className="text-xl font-bold text-white">
-                                                ₹{calculateTotal()}
+                                            {/* Trade Controls */}
+                                            <div className="space-y-4">
+                                                <div className="flex space-x-4">
+                                                    <button
+                                                        onClick={() => setTradeModal({ isOpen: true, type: 'BUY' })}
+                                                        className="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+                                                    >
+                                                        Buy {selectedStock}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setTradeModal({ isOpen: true, type: 'SELL' })}
+                                                        className="flex-1 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+                                                    >
+                                                        Sell {selectedStock}
+                                                    </button>
+                                                </div>
+                                                <div className="bg-gray-700 p-3 rounded-lg">
+                                                    <div className="text-gray-400">Order Value (at current price)</div>
+                                                    <div className="text-xl font-bold text-white">
+                                                        ₹{(stocks.find(s => s.symbol === selectedStock)?.currentPrice * tradeQuantity).toFixed(2)}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
+                                    </>
+                                ) : (
+                                    <div className="text-center text-gray-400 py-8">
+                                        Select a stock to start trading
                                     </div>
+                                )}
+                            </div>
 
-                                    <div className="flex justify-end space-x-4 mt-6">
-                                        <button
-                                            onClick={() => {
-                                                setTradeModal({ isOpen: false, type: null });
-                                                setTradeQuantity(1);
-                                                setTradeError('');
-                                            }}
-                                            className="px-4 py-2 text-gray-400 hover:text-white"
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            onClick={() => handleTrade(tradeModal.type)}
-                                            disabled={tradeLoading}
-                                            className={`px-4 py-2 rounded ${tradeModal.type === 'BUY'
-                                                    ? 'bg-green-600 hover:bg-green-700'
-                                                    : 'bg-red-600 hover:bg-red-700'
-                                                } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
-                                        >
-                                            {tradeLoading
-                                                ? 'Processing...'
-                                                : `${tradeModal.type === 'BUY' ? 'Buy' : 'Sell'} Shares`}
-                                        </button>
+                            {/* Chart Container */}
+                            <div className="bg-gray-800 rounded-lg p-6 shadow-xl">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-xl text-white font-semibold">Real-time Price Chart</h2>
+                                    <div className="flex items-center space-x-6">
+                                        <div className="flex items-center">
+                                            <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                                            <span className="text-gray-400 text-sm">Bullish</span>
+                                        </div>
+                                        <div className="flex items-center">
+                                            <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
+                                            <span className="text-gray-400 text-sm">Bearish</span>
+                                        </div>
+                                        <div className="px-3 py-1 bg-gray-700 rounded text-sm text-gray-400">
+                                            Updates every 30s
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="relative">
+                                    <svg ref={svgRef} className="w-full" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Trade Modal */}
+                {tradeModal.isOpen && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full">
+                            <h3 className="text-xl font-bold text-white mb-4">
+                                {tradeModal.type === 'BUY' ? 'Buy' : 'Sell'} {selectedStock}
+                            </h3>
+                            
+                            {tradeError && (
+                                <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-2 rounded mb-4">
+                                    {tradeError}
+                                </div>
+                            )}
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">
+                                        Quantity
+                                    </label>
+                                    <div className="flex items-center space-x-3">
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={tradeQuantity}
+                                            onChange={handleQuantityChange}
+                                            className="flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                        <div className="flex space-x-2">
+                                            {[1, 5, 10, 25, 50].map(qty => (
+                                                <button
+                                                    key={qty}
+                                                    onClick={() => setTradeQuantity(qty)}
+                                                    className={`px-2 py-1 rounded text-sm ${
+                                                        tradeQuantity === qty 
+                                                            ? 'bg-blue-600 text-white' 
+                                                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                                    }`}
+                                                >
+                                                    {qty}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-gray-750 rounded-lg p-4">
+                                    <div className="flex justify-between text-sm text-gray-400 mb-1">
+                                        <span>Price per share</span>
+                                        <span>₹{stocks.find(s => s.symbol === selectedStock)?.currentPrice.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-lg font-bold text-white">
+                                        <span>Total {tradeModal.type === 'BUY' ? 'Cost' : 'Value'}</span>
+                                        <span>₹{calculateTotal()}</span>
                                     </div>
                                 </div>
                             </div>
-                        )}
-                    </>
+
+                            <div className="flex justify-end space-x-4 mt-6">
+                                <button
+                                    onClick={() => {
+                                        setTradeModal({ isOpen: false, type: null });
+                                        setTradeQuantity(1);
+                                        setTradeError('');
+                                    }}
+                                    className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => handleTrade(tradeModal.type)}
+                                    disabled={tradeLoading}
+                                    className={`px-6 py-2 rounded-lg ${
+                                        tradeModal.type === 'BUY'
+                                            ? 'bg-green-600 hover:bg-green-700'
+                                            : 'bg-red-600 hover:bg-red-700'
+                                    } text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
+                                >
+                                    {tradeLoading
+                                        ? 'Processing...'
+                                        : `${tradeModal.type === 'BUY' ? 'Buy' : 'Sell'} Shares`}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 )}
             </div>
         </div>
