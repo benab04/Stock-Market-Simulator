@@ -7,15 +7,16 @@ export async function GET(request) {
         const { searchParams } = new URL(request.url);
         const timeframe = searchParams.get('timeframe') || '1min';
 
-        // Convert timeframe to number of entries
-        const entriesMap = {
-            '1min': 20,
-            '5min': 100,
-            '30min': 300,
-            '1hr': 600
-        };
+        // Calculate time window for filtering data
+        const now = new Date();
+        const timeWindow = {
+            '1min': 60 * 1000,            // 1 minute in milliseconds
+            '5min': 5 * 60 * 1000,        // 5 minutes
+            '30min': 30 * 60 * 1000,      // 30 minutes
+            '1hr': 60 * 60 * 1000         // 1 hour
+        }[timeframe] || 60 * 1000;        // default to 1 min
 
-        const numEntries = entriesMap[timeframe] || 20;
+        const startTime = new Date(now.getTime() - timeWindow);
 
         // Get stocks with their historical entries based on timeframe
         const stocks = await Stock.aggregate([
@@ -24,43 +25,22 @@ export async function GET(request) {
                     symbol: 1,
                     currentPrice: 1,
                     priceHistory: {
-                        $slice: ['$priceHistory', -numEntries]
+                        $filter: {
+                            input: '$priceHistory',
+                            as: 'item',
+                            cond: { $gte: ['$$item.timestamp', startTime] }
+                        }
                     }
                 }
             }
         ]);
 
-        // Format and aggregate the data based on timeframe
-        const formattedData = stocks.map(stock => {
-            let aggregatedHistory = stock.priceHistory || [];
-
-            if (timeframe !== '1min') {
-                // Group data points based on timeframe
-                const groupSize = timeframe === '5min' ? 5 : timeframe === '30min' ? 30 : 60;
-                const groups = [];
-
-                for (let i = 0; i < aggregatedHistory.length; i += groupSize) {
-                    const group = aggregatedHistory.slice(i, i + groupSize);
-                    if (group.length > 0) {
-                        groups.push({
-                            timestamp: group[0].timestamp,
-                            open: group[0].open,
-                            high: Math.max(...group.map(g => g.high)),
-                            low: Math.min(...group.map(g => g.low)),
-                            close: group[group.length - 1].close,
-                            volume: group.reduce((sum, g) => sum + g.volume, 0)
-                        });
-                    }
-                }
-                aggregatedHistory = groups;
-            }
-
-            return {
-                symbol: stock.symbol,
-                currentPrice: stock.currentPrice,
-                priceHistory: aggregatedHistory
-            };
-        });
+        // Format the data without time-based aggregation
+        const formattedData = stocks.map(stock => ({
+            symbol: stock.symbol,
+            currentPrice: stock.currentPrice,
+            priceHistory: stock.priceHistory || []
+        }));
 
         return Response.json(formattedData);
     } catch (error) {
@@ -70,4 +50,4 @@ export async function GET(request) {
             { status: 500 }
         );
     }
-} 
+}

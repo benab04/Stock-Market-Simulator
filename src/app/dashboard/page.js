@@ -70,37 +70,24 @@ export default function Dashboard() {
             const updates = JSON.parse(event.data);
             console.log('Received updates:', updates);
 
-            // Update data for all stocks based on selected timeframe
-            const maxEntries = selectedTimeFrame === '1min' ? 20 :
-                selectedTimeFrame === '5min' ? 100 :
-                    selectedTimeFrame === '30min' ? 300 : 600;
+            // Calculate time window for filtering data
+            const now = new Date();
+            const timeWindow = {
+                '1min': 60 * 1000,            // 1 minute in milliseconds
+                '5min': 5 * 60 * 1000,        // 5 minutes
+                '30min': 30 * 60 * 1000,      // 30 minutes
+                '1hr': 60 * 60 * 1000         // 1 hour
+            }[selectedTimeFrame] || 60 * 1000; // default to 1 min
 
             updates.forEach(update => {
                 const currentData = dataRef.current[update.symbol] || [];
                 const newData = [...currentData, update.priceHistory];
-
-                if (selectedTimeFrame !== '1min') {
-                    // Group data points based on timeframe
-                    const groupSize = selectedTimeFrame === '5min' ? 5 :
-                        selectedTimeFrame === '30min' ? 30 : 60;
-
-                    if (newData.length >= groupSize) {
-                        const group = newData.slice(-groupSize);
-                        const aggregatedPoint = {
-                            timestamp: group[0].timestamp,
-                            open: group[0].open,
-                            high: Math.max(...group.map(g => g.high)),
-                            low: Math.min(...group.map(g => g.low)),
-                            close: group[group.length - 1].close,
-                            volume: group.reduce((sum, g) => sum + g.volume, 0)
-                        };
-                        dataRef.current[update.symbol] = [...newData.slice(0, -groupSize), aggregatedPoint].slice(-maxEntries);
-                    } else {
-                        dataRef.current[update.symbol] = newData.slice(-maxEntries);
-                    }
-                } else {
-                    dataRef.current[update.symbol] = newData.slice(-maxEntries);
-                }
+                
+                // Filter data points to only keep those within the time window
+                const cutoffTime = new Date(now.getTime() - timeWindow);
+                dataRef.current[update.symbol] = newData.filter(
+                    point => new Date(point.timestamp) >= cutoffTime
+                );
             });
 
             // Update stocks list if needed
@@ -121,7 +108,7 @@ export default function Dashboard() {
 
         // Cleanup SSE connection
         return () => eventSource.close();
-    }, [isLoading, selectedStock]); // Depend on isLoading and selectedStock
+    }, [isLoading, selectedStock, selectedTimeFrame]); // Added selectedTimeFrame dependency
 
     const updateChart = (symbol) => {
         if (!svgRef.current || !dataRef.current[symbol]?.length) return;
