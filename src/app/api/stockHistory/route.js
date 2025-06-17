@@ -9,7 +9,9 @@ export async function GET(request) {
         const timeframe = searchParams.get('timeframe') || '5min';
         const start = searchParams.get('start');
         const end = searchParams.get('end');
-
+        console.log("Stock", symbol)
+        console.log("Start", start)
+        console.log("End", end)
         if (!symbol) {
             return Response.json(
                 { error: 'Symbol parameter is required' },
@@ -37,7 +39,7 @@ export async function GET(request) {
         if (start && end) {
             const startTime = new Date(start);
             const endTime = new Date(end);
-            filteredPriceHistory = filteredPriceHistory.filter(price => 
+            filteredPriceHistory = filteredPriceHistory.filter(price =>
                 price.timestamp >= startTime && price.timestamp <= endTime
             );
         }

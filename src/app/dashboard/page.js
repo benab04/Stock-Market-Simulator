@@ -11,7 +11,7 @@ export default function Dashboard() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const [stocks, setStocks] = useState([]);
-    const [selectedStock, setSelectedStock] = useState(null);
+    const [selectedStock, setSelectedStock] = useState('ABINFD');
     const [selectedTimeFrame, setSelectedTimeFrame] = useState('5min');
     const [viewRange, setViewRange] = useState({
         start: null,
