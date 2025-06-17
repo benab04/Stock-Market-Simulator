@@ -13,6 +13,45 @@ export default function Dashboard() {
     const [stocks, setStocks] = useState([]);
     const [selectedStock, setSelectedStock] = useState(null);
     const [selectedTimeFrame, setSelectedTimeFrame] = useState('5min');
+    const [viewRange, setViewRange] = useState({
+        start: null,
+        end: null
+    });
+
+    // Constants for time windows
+    const TIME_WINDOWS = {
+        '5min': { hours: 2, candleWidth: 10 },
+        '30min': { hours: 12, candleWidth: 15 },
+        '2hour': { hours: 48, candleWidth: 20 }
+    };
+
+    // Function to fetch data for a specific time range
+    const fetchDataForRange = async (symbol, timeframe, start, end) => {
+        try {
+            const response = await fetch(
+                `/api/stockHistory?symbol=${symbol}&timeframe=${timeframe}&start=${start.toISOString()}&end=${end.toISOString()}`
+            );
+            if (!response.ok) {
+                throw new Error('Failed to fetch historical data');
+            }
+            const data = await response.json();
+            return data.candles || [];
+        } catch (error) {
+            console.error('Error fetching range data:', error);
+            return [];
+        }
+    };
+
+    // Function to merge new data with existing data without duplicates
+    const mergeData = (existingData, newData) => {
+        const allData = [...existingData];
+        newData.forEach(newCandle => {
+            if (!allData.some(existing => existing.startTime === newCandle.startTime)) {
+                allData.push(newCandle);
+            }
+        });
+        return allData.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+    };
 
     // Load stocks on mount
     useEffect(() => {
@@ -39,13 +78,21 @@ export default function Dashboard() {
     useEffect(() => {
         async function loadHistoricalData() {
             try {
-                console.log('Loading historical data for:', selectedStock, selectedTimeFrame);
-                const response = await fetch(`/api/stockHistory?symbol=${selectedStock}&timeframe=${selectedTimeFrame}`);
+                setIsLoading(true);
+                const end = new Date();
+                const start = new Date(end.getTime() - (TIME_WINDOWS[selectedTimeFrame].hours * 60 * 60 * 1000));
+
+                setViewRange({ start, end });
+
+                const response = await fetch(
+                    `/api/stockHistory?symbol=${selectedStock}&timeframe=${selectedTimeFrame}&start=${start.toISOString()}&end=${end.toISOString()}`
+                );
+
                 if (!response.ok) {
                     throw new Error('Failed to fetch historical data');
                 }
+
                 const historicalData = await response.json();
-                console.log('Received historical data:', historicalData);
 
                 if (!historicalData.candles || historicalData.candles.length === 0) {
                     console.warn('No candles data received');
@@ -70,7 +117,6 @@ export default function Dashboard() {
                 });
 
                 if (selectedStock) {
-                    console.log('Updating chart with data:', dataRef.current[selectedStock]);
                     updateChart(selectedStock);
                 }
 
@@ -281,51 +327,55 @@ export default function Dashboard() {
 
         // Set up dimensions with better spacing for price labels
         const margin = { top: 30, right: 120, bottom: 120, left: 80 };
-
-        // Calculate optimal candle width based on available space and data length
         const containerWidth = svgRef.current.clientWidth || 1200;
-        const availableWidth = containerWidth - margin.left - margin.right;
-        const totalCandles = data.length;
-
-        // Calculate candle width to fill the available space
-        const spacing = 2; // Space between candles
-        const candleWidth = Math.max(3, Math.min(20, (availableWidth - (totalCandles * spacing)) / totalCandles));
-
-        // Calculate final width based on candle requirements
-        const width = Math.max(availableWidth, totalCandles * (candleWidth + spacing));
+        const width = containerWidth - margin.left - margin.right;
         const height = 400;
         const volumeHeight = 100;
+
+        // Use fixed candle width based on timeframe
+        const candleWidth = TIME_WINDOWS[selectedTimeFrame].candleWidth;
 
         const maxPrice = d3.max(data, d => d.high) * 1.001;
         const minPrice = d3.min(data, d => d.low) * 0.999;
         const pricePadding = (maxPrice - minPrice) * 0.05;
 
-        // Create SVG with updated dimensions
+        // Create main SVG
         const svg = d3.select(svgRef.current)
             .attr('width', '100%')
             .attr('height', height + margin.top + margin.bottom + volumeHeight)
             .attr('viewBox', `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom + volumeHeight}`)
-            .attr('preserveAspectRatio', 'xMidYMid meet')
             .append('g')
             .attr('transform', `translate(${margin.left},${margin.top})`);
 
-        // Create scales with better time distribution
+        // Create scales
         const xScale = d3.scaleTime()
             .domain(d3.extent(data, d => new Date(d.startTime)))
-            .range([candleWidth / 2, width - candleWidth / 2]); // Adjust range to center candles
+            .range([0, width]);
 
         const yScale = d3.scaleLinear()
             .domain([minPrice - pricePadding, maxPrice + pricePadding])
-            .range([height, 0])
-            .nice();
+            .range([height, 0]);
 
         const volumeScale = d3.scaleLinear()
             .domain([0, d3.max(data, d => d.volume) * 1.05])
-            .range([volumeHeight, 0])
-            .nice();
+            .range([volumeHeight, 0]);
 
         // Store scales for price indicator updates
         scaleRef.current = { xScale, yScale, width, margin };
+
+        // Add clip path
+        svg.append('defs')
+            .append('clipPath')
+            .attr('id', 'chart-area')
+            .append('rect')
+            .attr('x', 0)
+            .attr('y', 0)
+            .attr('width', width)
+            .attr('height', height);
+
+        // Create chart group with clip path
+        const chartGroup = svg.append('g')
+            .attr('clip-path', 'url(#chart-area)');
 
         // Add gradient background
         const gradient = svg.append('defs')
@@ -347,72 +397,79 @@ export default function Dashboard() {
             .attr('stop-opacity', 0);
 
         // Add background rectangle
-        svg.append('rect')
+        chartGroup.append('rect')
             .attr('width', width)
             .attr('height', height)
             .attr('fill', 'url(#chart-gradient)');
 
-        // Add grid
-        svg.append('g')
-            .attr('class', 'grid')
-            .attr('transform', `translate(0,${height})`)
-            .call(d3.axisBottom(xScale)
+        // Create chart content group
+        const contentGroup = chartGroup.append('g')
+            .attr('class', 'chart-content');
+
+        // Add grid lines
+        const xGrid = contentGroup.append('g')
+            .attr('class', 'x-grid')
+            .attr('transform', `translate(0,${height})`);
+
+        const yGrid = contentGroup.append('g')
+            .attr('class', 'y-grid');
+
+        // Function to update grid
+        const updateGrid = (currentXScale) => {
+            xGrid.call(d3.axisBottom(currentXScale)
                 .ticks(Math.min(12, Math.floor(width / 100)))
                 .tickSize(-height)
                 .tickFormat('')
             )
-            .call(g => g.select('.domain').remove())
-            .call(g => g.selectAll('.tick line')
-                .attr('stroke', '#1f2937')
-                .attr('stroke-opacity', 0.1)
-                .attr('stroke-width', 1));
+                .call(g => g.select('.domain').remove())
+                .call(g => g.selectAll('.tick line')
+                    .attr('stroke', '#1f2937')
+                    .attr('stroke-opacity', 0.1));
 
-        svg.append('g')
-            .attr('class', 'grid')
-            .call(d3.axisLeft(yScale)
+            yGrid.call(d3.axisLeft(yScale)
                 .ticks(8)
                 .tickSize(-width)
                 .tickFormat('')
             )
-            .call(g => g.select('.domain').remove())
-            .call(g => g.selectAll('.tick line')
-                .attr('stroke', '#1f2937')
-                .attr('stroke-opacity', 0.1)
-                .attr('stroke-width', 1));
+                .call(g => g.select('.domain').remove())
+                .call(g => g.selectAll('.tick line')
+                    .attr('stroke', '#1f2937')
+                    .attr('stroke-opacity', 0.1));
+        };
 
-        // Add axes
-        svg.append('g')
-            .attr('transform', `translate(0,${height})`)
-            .attr('class', 'text-xs')
-            .call(d3.axisBottom(xScale)
-                .ticks(Math.min(12, Math.floor(width / 100)))
-                .tickFormat(d3.timeFormat('%H:%M')))
-            .selectAll('text')
-            .style('fill', '#9ca3af')
-            .attr('transform', 'rotate(-45)')
-            .attr('text-anchor', 'end')
-            .attr('dy', '0.5em');
+        // Initial grid setup
+        updateGrid(xScale);
 
-        svg.append('g')
-            .attr('class', 'text-xs')
-            .call(d3.axisLeft(yScale)
-                .tickFormat(d => `₹${d.toFixed(2)}`))
-            .selectAll('text')
-            .style('fill', '#9ca3af');
+        // Add candlesticks
+        const candlesticks = contentGroup.selectAll('.candlestick')
+            .data(data)
+            .enter()
+            .append('g')
+            .attr('class', 'candlestick');
 
-        // Draw volume bars
-        const volumeGroup = svg.append('g')
+        // Draw wicks
+        candlesticks.append('line')
+            .attr('class', 'wick')
+            .attr('x1', d => xScale(new Date(d.startTime)))
+            .attr('x2', d => xScale(new Date(d.startTime)))
+            .attr('y1', d => yScale(d.high))
+            .attr('y2', d => yScale(d.low))
+            .attr('stroke', d => d.close >= d.open ? '#22c55e' : '#ef4444');
+
+        // Draw candle bodies
+        candlesticks.append('rect')
+            .attr('class', 'candle')
+            .attr('x', d => xScale(new Date(d.startTime)) - candleWidth / 2)
+            .attr('y', d => yScale(Math.max(d.open, d.close)))
+            .attr('width', candleWidth)
+            .attr('height', d => Math.max(Math.abs(yScale(d.open) - yScale(d.close)), 1))
+            .attr('fill', d => d.close >= d.open ? '#22c55e' : '#ef4444');
+
+        // Add volume bars
+        const volumeGroup = chartGroup.append('g')
+            .attr('class', 'volume-group')
             .attr('transform', `translate(0,${height + 40})`);
 
-        // Add volume title
-        volumeGroup.append('text')
-            .attr('x', -margin.left)
-            .attr('y', -10)
-            .attr('fill', '#9ca3af')
-            .attr('font-size', '11px')
-            .text('Volume');
-
-        // Draw volume bars with consistent spacing
         volumeGroup.selectAll('.volume-bar')
             .data(data)
             .enter()
@@ -426,71 +483,111 @@ export default function Dashboard() {
             .attr('stroke', d => d.close >= d.open ? '#22c55e' : '#ef4444')
             .attr('stroke-width', 0.5);
 
-        // Draw candlesticks with consistent spacing
-        const candlesticks = svg.selectAll('.candlestick')
-            .data(data)
-            .enter()
-            .append('g')
-            .attr('class', 'candlestick');
+        // Add axes
+        const xAxis = svg.append('g')
+            .attr('class', 'x-axis')
+            .attr('transform', `translate(0,${height})`);
 
-        // Draw wicks
-        candlesticks.append('line')
-            .attr('class', 'wick')
-            .attr('x1', d => xScale(new Date(d.startTime)))
-            .attr('x2', d => xScale(new Date(d.startTime)))
-            .attr('y1', d => yScale(d.high))
-            .attr('y2', d => yScale(d.low))
-            .attr('stroke', d => d.close >= d.open ? '#22c55e' : '#ef4444')
-            .attr('stroke-width', 1);
+        const yAxis = svg.append('g')
+            .attr('class', 'y-axis');
 
-        // Draw candle bodies
-        candlesticks.append('rect')
-            .attr('class', 'candle')
-            .attr('x', d => xScale(new Date(d.startTime)) - candleWidth / 2)
-            .attr('y', d => yScale(Math.max(d.open, d.close)))
-            .attr('width', candleWidth)
-            .attr('height', d => Math.max(
-                Math.abs(yScale(d.open) - yScale(d.close)),
-                1
-            ))
-            .attr('fill', d => d.close >= d.open ? '#22c55e' : '#ef4444')
-            .attr('stroke', d => d.close >= d.open ? '#16a34a' : '#dc2626')
-            .attr('stroke-width', 1)
-            .attr('rx', 0.5);
+        // Function to update axes
+        const updateAxes = (currentXScale) => {
+            xAxis.call(d3.axisBottom(currentXScale)
+                .ticks(Math.min(12, Math.floor(width / 100)))
+                .tickFormat(d3.timeFormat('%H:%M')));
+
+            yAxis.call(d3.axisLeft(yScale)
+                .tickFormat(d => `₹${d.toFixed(2)}`));
+        };
+
+        // Initial axes setup
+        updateAxes(xScale);
+
+        // Setup zoom/pan behavior - FIXED VERSION
+        const zoom = d3.zoom()
+            .scaleExtent([0.5, 10]) // Allow some zoom but primarily for panning
+            .extent([[0, 0], [width, height]])
+            .on('zoom', (event) => {
+                const transform = event.transform;
+
+                // Create new x scale based on the transform
+                const newXScale = transform.rescaleX(xScale);
+
+                // Update candlesticks position
+                contentGroup.selectAll('.candlestick')
+                    .selectAll('line.wick')
+                    .attr('x1', d => newXScale(new Date(d.startTime)))
+                    .attr('x2', d => newXScale(new Date(d.startTime)));
+
+                contentGroup.selectAll('.candlestick')
+                    .selectAll('rect.candle')
+                    .attr('x', d => newXScale(new Date(d.startTime)) - candleWidth / 2);
+
+                // Update volume bars position
+                volumeGroup.selectAll('.volume-bar')
+                    .attr('x', d => newXScale(new Date(d.startTime)) - candleWidth / 2);
+
+                // Update axes and grid
+                updateAxes(newXScale);
+                updateGrid(newXScale);
+
+                // Store the current transform for price indicator updates
+                scaleRef.current.currentTransform = transform;
+                scaleRef.current.currentXScale = newXScale;
+            });
+
+        // Apply zoom behavior to a transparent overlay
+        const overlay = svg.append('rect')
+            .attr('class', 'zoom-overlay')
+            .attr('width', width)
+            .attr('height', height)
+            .attr('fill', 'transparent')
+            .attr('cursor', 'move')
+            .call(zoom);
 
         // Add tooltip
-        const tooltip = d3.select('body').append('div')
-            .attr('class', 'absolute hidden bg-gray-900 text-white p-2 rounded shadow-lg text-xs')
-            .style('pointer-events', 'none');
+        const tooltip = d3.select('body')
+            .selectAll('.chart-tooltip')
+            .data([null])
+            .join('div')
+            .attr('class', 'chart-tooltip')
+            .style('position', 'absolute')
+            .style('display', 'none')
+            .style('background', 'rgba(0, 0, 0, 0.8)')
+            .style('color', 'white')
+            .style('padding', '8px')
+            .style('border-radius', '4px')
+            .style('font-size', '12px')
+            .style('pointer-events', 'none')
+            .style('z-index', '100');
 
+        // Add tooltip behavior
         candlesticks.on('mouseover', (event, d) => {
-            tooltip
-                .style('display', 'block')
-                .style('left', (event.pageX + 10) + 'px')
-                .style('top', (event.pageY - 28) + 'px')
+            const timeStr = new Date(d.startTime).toLocaleTimeString();
+            tooltip.style('display', 'block')
                 .html(`
-                    <div class="space-y-1">
-                        <div class="font-semibold">${new Date(d.startTime).toLocaleTimeString()}</div>
-                        <div>O: ₹${d.open.toFixed(2)}</div>
-                        <div>H: ₹${d.high.toFixed(2)}</div>
-                        <div>L: ₹${d.low.toFixed(2)}</div>
-                        <div>C: ₹${d.close.toFixed(2)}</div>
-                        <div>Vol: ${d.volume.toLocaleString()}</div>
-                    </div>
-                `);
+                    Time: ${timeStr}<br/>
+                    Open: ₹${d.open.toFixed(2)}<br/>
+                    High: ₹${d.high.toFixed(2)}<br/>
+                    Low: ₹${d.low.toFixed(2)}<br/>
+                    Close: ₹${d.close.toFixed(2)}<br/>
+                    Volume: ${d.volume.toLocaleString()}
+                `)
+                .style('left', (event.pageX + 10) + 'px')
+                .style('top', (event.pageY - 10) + 'px');
         })
+            .on('mousemove', (event) => {
+                tooltip.style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 10) + 'px');
+            })
             .on('mouseout', () => {
                 tooltip.style('display', 'none');
             });
 
-        // Draw current price indicator - this will be called at the end of chart creation
-        const currentStock = stocks.find(s => s.symbol === symbol);
-        const currentPrice = currentStock?.currentPrice;
-        if (currentPrice) {
-            // Use setTimeout to ensure the price indicator is drawn after all other elements
-            setTimeout(() => {
-                updatePriceIndicator(currentPrice);
-            }, 10);
+        // Update price indicator if needed
+        if (stocks.find(s => s.symbol === symbol)?.currentPrice) {
+            updatePriceIndicator(stocks.find(s => s.symbol === symbol).currentPrice);
         }
     };
 
@@ -544,6 +641,9 @@ export default function Dashboard() {
                                         </h2>
                                         <div className="px-3 py-1 bg-gray-700 rounded text-sm text-gray-400">
                                             Updates every 30s
+                                        </div>
+                                        <div className="px-3 py-1 bg-blue-700 rounded text-sm text-blue-200">
+                                            Click and drag to pan • Scroll to zoom
                                         </div>
                                     </div>
                                     {timeFrameButtons}

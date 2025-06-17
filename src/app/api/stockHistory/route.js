@@ -7,6 +7,8 @@ export async function GET(request) {
         const { searchParams } = new URL(request.url);
         const symbol = searchParams.get('symbol');
         const timeframe = searchParams.get('timeframe') || '5min';
+        const start = searchParams.get('start');
+        const end = searchParams.get('end');
 
         if (!symbol) {
             return Response.json(
@@ -29,21 +31,30 @@ export async function GET(request) {
         }
 
         let candles = [];
-        const priceHistory = stock.priceHistory || [];
+        let filteredPriceHistory = stock.priceHistory || [];
+
+        // Filter price history based on time range if provided
+        if (start && end) {
+            const startTime = new Date(start);
+            const endTime = new Date(end);
+            filteredPriceHistory = filteredPriceHistory.filter(price => 
+                price.timestamp >= startTime && price.timestamp <= endTime
+            );
+        }
 
         // Group price history into candles based on timeframe
-        if (priceHistory.length > 0) {
+        if (filteredPriceHistory.length > 0) {
             const interval = timeframe === '5min' ? 5 :
                 timeframe === '30min' ? 30 : 120; // 2 hours
 
             // Sort price history by timestamp
-            priceHistory.sort((a, b) => a.timestamp - b.timestamp);
+            filteredPriceHistory.sort((a, b) => a.timestamp - b.timestamp);
 
             // Group into candles
             let currentCandle = null;
             let currentTime = null;
 
-            for (const price of priceHistory) {
+            for (const price of filteredPriceHistory) {
                 const time = new Date(price.timestamp);
                 const minutes = time.getHours() * 60 + time.getMinutes();
                 const candleStart = Math.floor(minutes / interval) * interval;
