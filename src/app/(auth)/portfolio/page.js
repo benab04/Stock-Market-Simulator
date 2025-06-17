@@ -34,20 +34,9 @@ export default function Portfolio() {
         }
     }, [session]);
 
-    if (!session) {
-        return (
-            <div className="min-h-screen bg-gray-100 p-8">
-                <div className="bg-white p-6 rounded-lg shadow-md text-center">
-                    <h1 className="text-2xl font-bold text-gray-800 mb-4">Please Log In</h1>
-                    <p className="text-gray-600">You need to be logged in to view your portfolio.</p>
-                </div>
-            </div>
-        );
-    }
-
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+            <div className="min-h-screen bg-gray-900 flex items-center justify-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
             </div>
         );
@@ -55,16 +44,19 @@ export default function Portfolio() {
 
     if (error) {
         return (
-            <div className="min-h-screen bg-gray-100 p-8">
-                <div className="bg-white p-6 rounded-lg shadow-md text-center">
-                    <h1 className="text-2xl font-bold text-red-600 mb-4">Error</h1>
-                    <p className="text-gray-600">{error}</p>
+            <div className="min-h-screen bg-gray-900 p-8">
+                <div className="bg-red-900/50 border border-red-500 p-4 rounded-lg">
+                    <p className="text-red-200">{error}</p>
                 </div>
             </div>
         );
     }
 
-    const { summary, holdings } = portfolioData; return (
+    if (!portfolioData) return null;
+
+    const { summary, holdings } = portfolioData;
+
+    return (
         <div className="min-h-screen bg-gray-900 p-8">
             {/* Portfolio Summary */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

@@ -49,7 +49,7 @@ export async function GET() {
             const currentPrice = stockPriceMap.get(holding.stockSymbol);
             const investedValue = holding.quantity * holding.averagePrice;
             const currentValue = holding.quantity * currentPrice;
-            
+
             totalInvested += investedValue;
             totalCurrent += currentValue;
 

@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
-export default function DashboardLayout({ children }) {
+export default function ProtectedLayout({ children }) {
     const { data: session, status } = useSession();
     const router = useRouter();
 
@@ -28,11 +28,11 @@ export default function DashboardLayout({ children }) {
     }
 
     return (
-        <div className="min-h-screen bg-gray-900">
+        <>
             <Navbar />
-            <main className="py-6">
+            <main className="min-h-screen bg-gray-900 py-6">
                 {children}
             </main>
-        </div>
+        </>
     );
-} 
+}
