@@ -20,8 +20,8 @@ export default function Dashboard() {
 
     // Constants for time windows
     const TIME_WINDOWS = {
-        '5min': { hours: 2, candleWidth: 10 },
-        '30min': { hours: 12, candleWidth: 15 },
+        '5min': { hours: 2, candleWidth: 5 },
+        '30min': { hours: 12, candleWidth: 12 },
         '2hour': { hours: 48, candleWidth: 20 }
     };
 
@@ -190,8 +190,8 @@ export default function Dashboard() {
                 .attr('y1', priceLineY)
                 .attr('y2', priceLineY)
                 .attr('stroke', priceColor)
-                .attr('stroke-width', 2)
-                .attr('stroke-dasharray', '5,5')
+                .attr('stroke-width', 1)
+                .attr('stroke-dasharray', '2,2')
                 .attr('opacity', 0.8);
 
             // Add price label
@@ -472,8 +472,11 @@ export default function Dashboard() {
         // Clear previous content
         d3.select(svgRef.current).selectAll('*').remove();
 
-        // Reset scale reference to avoid stale data
-        scaleRef.current = {};
+        // Reset scale reference to avoid stale data - THIS IS THE KEY FIX
+        scaleRef.current = {
+            currentTransform: null,
+            currentXScale: null
+        };
 
         const data = dataRef.current[symbol];
 
@@ -512,8 +515,15 @@ export default function Dashboard() {
             .domain([0, d3.max(data, d => d.volume) * 1.05])
             .range([volumeHeight, 0]);
 
-        // Store scales for price indicator updates
-        scaleRef.current = { xScale, yScale, width, margin, currentTransform: null, currentXScale: null };
+        // Store scales for price indicator updates - PROPERLY INITIALIZE
+        scaleRef.current = {
+            xScale,
+            yScale,
+            width,
+            margin,
+            currentTransform: null,
+            currentXScale: null
+        };
 
         // Add clip path
         svg.append('defs')
@@ -658,7 +668,7 @@ export default function Dashboard() {
 
         // Setup zoom/pan behavior
         const zoom = d3.zoom()
-            .scaleExtent([0.5, 20])
+            .scaleExtent([1, 10])
             .extent([[0, 0], [width, height]])
             .on('zoom', (event) => {
                 const transform = event.transform;
@@ -696,6 +706,13 @@ export default function Dashboard() {
             .attr('cursor', 'move')
             .call(zoom);
 
+        // CRITICAL FIX: Reset zoom to identity transform
+        overlay.call(zoom.transform, d3.zoomIdentity);
+
+        // Also reset the stored transform in scaleRef
+        scaleRef.current.currentTransform = null;
+        scaleRef.current.currentXScale = null;
+
         // Add tooltip
         const tooltip = d3.select('body')
             .selectAll('.chart-tooltip')
@@ -717,13 +734,13 @@ export default function Dashboard() {
             const timeStr = new Date(d.startTime).toLocaleTimeString();
             tooltip.style('display', 'block')
                 .html(`
-                Time: ${timeStr}<br/>
-                Open: ₹${d.open.toFixed(2)}<br/>
-                High: ₹${d.high.toFixed(2)}<br/>
-                Low: ₹${d.low.toFixed(2)}<br/>
-                Close: ₹${d.close.toFixed(2)}<br/>
-                Volume: ${d.volume.toLocaleString()}
-            `)
+            Time: ${timeStr}<br/>
+            Open: ₹${d.open.toFixed(2)}<br/>
+            High: ₹${d.high.toFixed(2)}<br/>
+            Low: ₹${d.low.toFixed(2)}<br/>
+            Close: ₹${d.close.toFixed(2)}<br/>
+            Volume: ${d.volume.toLocaleString()}
+        `)
                 .style('left', (event.pageX + 10) + 'px')
                 .style('top', (event.pageY - 10) + 'px');
         })
@@ -745,7 +762,6 @@ export default function Dashboard() {
             }, 100);
         }
     };
-
 
     return (
         <div className="min-h-screen bg-gray-900 flex">
