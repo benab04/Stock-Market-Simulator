@@ -53,6 +53,86 @@ export default function Dashboard() {
         return allData.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
     };
 
+    const isDataInCurrentView = (newData, currentTransform, xScale) => {
+        if (!currentTransform || !newData.length) return false;
+
+        const currentXScale = currentTransform.rescaleX(xScale);
+        const viewDomain = currentXScale.domain();
+        const newDataTime = new Date(newData[newData.length - 1].startTime);
+
+        return newDataTime >= viewDomain[0] && newDataTime <= viewDomain[1];
+    };
+
+
+    const updateChartData = (symbol, newCandles) => {
+        if (!svgRef.current || !dataRef.current[symbol]) return;
+
+        const svg = d3.select(svsgRef.current).select('g');
+        const { xScale, yScale, currentTransform, currentXScale } = scaleRef.current;
+
+        // Use current scale or original scale
+        const activeXScale = currentXScale || xScale;
+        const candleWidth = TIME_WINDOWS[selectedTimeFrame].candleWidth;
+
+        // Update candlesticks
+        const candlesticks = svg.select('.chart-content')
+            .selectAll('.candlestick')
+            .data(newCandles, d => d.startTime);
+
+        // Enter new candlesticks
+        const enterGroup = candlesticks.enter()
+            .append('g')
+            .attr('class', 'candlestick');
+
+        enterGroup.append('line')
+            .attr('class', 'wick');
+
+        enterGroup.append('rect')
+            .attr('class', 'candle');
+
+        // Update all candlesticks (existing + new)
+        const allCandlesticks = enterGroup.merge(candlesticks);
+
+        allCandlesticks.select('line.wick')
+            .attr('x1', d => activeXScale(new Date(d.startTime)))
+            .attr('x2', d => activeXScale(new Date(d.startTime)))
+            .attr('y1', d => yScale(d.high))
+            .attr('y2', d => yScale(d.low))
+            .attr('stroke', d => d.close >= d.open ? '#22c55e' : '#ef4444');
+
+        allCandlesticks.select('rect.candle')
+            .attr('x', d => activeXScale(new Date(d.startTime)) - candleWidth / 2)
+            .attr('y', d => yScale(Math.max(d.open, d.close)))
+            .attr('width', candleWidth)
+            .attr('height', d => Math.max(Math.abs(yScale(d.open) - yScale(d.close)), 1))
+            .attr('fill', d => d.close >= d.open ? '#22c55e' : '#ef4444');
+
+        // Update volume bars similarly
+        const volumeGroup = svg.select('.volume-group');
+        const volumeScale = scaleRef.current.volumeScale;
+
+        const volumeBars = volumeGroup.selectAll('.volume-bar')
+            .data(newCandles, d => d.startTime);
+
+        const enterVolume = volumeBars.enter()
+            .append('rect')
+            .attr('class', 'volume-bar');
+
+        enterVolume.merge(volumeBars)
+            .attr('x', d => activeXScale(new Date(d.startTime)) - candleWidth / 2)
+            .attr('y', d => volumeScale(d.volume))
+            .attr('width', candleWidth)
+            .attr('height', d => volumeScale.range()[0] - volumeScale(d.volume))
+            .attr('fill', d => d.close >= d.open ? '#22c55e40' : '#ef444440')
+            .attr('stroke', d => d.close >= d.open ? '#22c55e' : '#ef4444')
+            .attr('stroke-width', 0.5);
+
+        // Remove old candlesticks that are no longer in data
+        candlesticks.exit().remove();
+        volumeBars.exit().remove();
+    };
+
+
     // Load stocks on mount
     useEffect(() => {
         async function loadStocks() {
@@ -77,12 +157,8 @@ export default function Dashboard() {
     // Load historical data when selected stock or timeframe changes
     useEffect(() => {
         async function loadHistoricalData() {
-            if (!selectedStock) return;
-
             try {
                 setIsLoading(true);
-                setError(null); // Clear any previous errors
-
                 const end = new Date();
                 const start = new Date(end.getTime() - (TIME_WINDOWS[selectedTimeFrame].hours * 60 * 60 * 1000));
 
@@ -101,7 +177,6 @@ export default function Dashboard() {
                 if (!historicalData.candles || historicalData.candles.length === 0) {
                     console.warn('No candles data received');
                     setError('No historical data available');
-                    setIsLoading(false);
                     return;
                 }
 
@@ -121,12 +196,11 @@ export default function Dashboard() {
                     return updatedStocks;
                 });
 
-                // Always update chart after data is loaded
-                setTimeout(() => {
+                if (selectedStock) {
                     updateChart(selectedStock);
-                    setIsLoading(false);
-                }, 100);
+                }
 
+                setIsLoading(false);
             } catch (error) {
                 console.error('Error loading historical data:', error);
                 setError('Failed to load historical data');
@@ -134,7 +208,9 @@ export default function Dashboard() {
             }
         }
 
-        loadHistoricalData();
+        if (selectedStock) {
+            loadHistoricalData();
+        }
     }, [selectedStock, selectedTimeFrame]);
 
     // Function to update price indicator in real-time
@@ -154,22 +230,10 @@ export default function Dashboard() {
             const data = dataRef.current[selectedStock];
             const lastCandle = data[data.length - 1];
 
-            // Use current scales (with transform if active)
-            const { yScale, width, currentXScale, xScale } = scaleRef.current;
-            const activeXScale = currentXScale || xScale;
-
-            if (!activeXScale || !yScale || !width) {
+            // Use existing scales from the chart
+            const { xScale, yScale, width, margin } = scaleRef.current;
+            if (!xScale || !yScale || !width) {
                 console.log('Price indicator update skipped - missing scales');
-                return;
-            }
-
-            // Check if current price line would be visible in current view
-            const [visibleStart, visibleEnd] = activeXScale.domain();
-            const lastCandleTime = new Date(lastCandle.startTime);
-
-            // Only show price indicator if we're viewing recent data
-            if (lastCandleTime < visibleStart) {
-                console.log('Price indicator not shown - viewing historical data');
                 return;
             }
 
@@ -194,11 +258,12 @@ export default function Dashboard() {
                 .attr('stroke-dasharray', '5,5')
                 .attr('opacity', 0.8);
 
-            // Add price label
+            // Add price label with better positioning
             const priceLabel = svg.append('g')
                 .attr('class', 'price-label-group')
                 .attr('transform', `translate(${width + 25}, ${priceLineY})`);
 
+            // Add background rectangle
             const labelText = `₹${currentPrice.toFixed(2)}`;
             const padding = 8;
             const textWidth = labelText.length * 8 + padding * 2;
@@ -212,6 +277,7 @@ export default function Dashboard() {
                 .attr('rx', 4)
                 .attr('opacity', 0.9);
 
+            // Add text
             priceLabel.append('text')
                 .attr('fill', 'white')
                 .attr('font-size', '12px')
@@ -266,21 +332,37 @@ export default function Dashboard() {
                             const historicalData = await response.json();
 
                             if (historicalData.candles?.length > 0 && isMounted) {
-                                // Use the new updateChartData function instead of full redraw
-                                updateChartData(selectedStock, historicalData.candles);
+                                const newCandles = historicalData.candles;
+                                const oldCandles = dataRef.current[selectedStock] || [];
 
-                                // Update price indicator
-                                setTimeout(() => {
+                                // Check if we need to update the chart or just store data
+                                const { currentTransform, xScale } = scaleRef.current;
+                                const shouldUpdateChart = !currentTransform || isDataInCurrentView(newCandles, currentTransform, xScale);
+
+                                // Always update stored data
+                                dataRef.current[selectedStock] = newCandles;
+
+                                if (shouldUpdateChart) {
+                                    // Update chart preserving zoom/pan
+                                    updateChartData(selectedStock, newCandles);
+
+                                    // Update price indicator
+                                    setTimeout(() => {
+                                        updatePriceIndicator(stockUpdate.price);
+                                    }, 50);
+                                } else {
+                                    // Just update price indicator without chart redraw
                                     updatePriceIndicator(stockUpdate.price);
-                                }, 50);
+                                }
                             }
                         } catch (error) {
                             console.error('Error updating historical data:', error);
-                            // Even if chart update fails, try to update price indicator
+                            // Still update price indicator
                             updatePriceIndicator(stockUpdate.price);
                         }
                     }
                 };
+
                 eventSource.onerror = (error) => {
                     console.error('SSE error:', error);
                     if (eventSource.readyState === EventSource.CLOSED && isMounted) {
@@ -328,153 +410,11 @@ export default function Dashboard() {
         </div>
     );
 
-
-    const updateChartData = (symbol, newData) => {
-        if (!svgRef.current || !scaleRef.current.xScale) {
-            console.log('UpdateChartData called but requirements not met');
-            return;
-        }
-
-        const { currentTransform, currentXScale } = scaleRef.current;
-        const activeXScale = currentXScale || scaleRef.current.xScale;
-
-        // Get current visible time range
-        const [visibleStart, visibleEnd] = activeXScale.domain();
-
-        // Check if new data falls within visible range
-        const newDataInView = newData.filter(candle => {
-            const candleTime = new Date(candle.startTime);
-            return candleTime >= visibleStart && candleTime <= visibleEnd;
-        });
-
-        // Always update stored data
-        dataRef.current[symbol] = newData;
-
-        // If no new data in view, still update price indicator but skip chart redraw
-        if (newDataInView.length === 0) {
-            console.log('New data outside visible range, skipping chart update');
-            return;
-        }
-
-        const svg = d3.select(svgRef.current).select('g');
-        const contentGroup = svg.select('.chart-content');
-        const volumeGroup = svg.select('.volume-group');
-
-        if (!contentGroup.node() || !volumeGroup.node()) {
-            console.log('Chart groups not found, doing full chart update');
-            updateChart(symbol);
-            return;
-        }
-
-        const candleWidth = TIME_WINDOWS[selectedTimeFrame].candleWidth;
-        const { yScale } = scaleRef.current;
-
-        // Update scales domains for new data range
-        const maxPrice = d3.max(newData, d => d.high) * 1.001;
-        const minPrice = d3.min(newData, d => d.low) * 0.999;
-        const pricePadding = (maxPrice - minPrice) * 0.05;
-
-        yScale.domain([minPrice - pricePadding, maxPrice + pricePadding]);
-
-        const volumeScale = d3.scaleLinear()
-            .domain([0, d3.max(newData, d => d.volume) * 1.05])
-            .range([100, 0]); // volumeHeight = 100
-
-        // Update candlesticks
-        const candlesticks = contentGroup.selectAll('.candlestick')
-            .data(newData, d => d.startTime);
-
-        // Remove old candlesticks
-        candlesticks.exit().remove();
-
-        // Add new candlesticks
-        const newCandlesticks = candlesticks.enter()
-            .append('g')
-            .attr('class', 'candlestick');
-
-        // Merge existing and new
-        const allCandlesticks = newCandlesticks.merge(candlesticks);
-
-        // Update wicks
-        allCandlesticks.selectAll('line.wick').remove();
-        allCandlesticks.append('line')
-            .attr('class', 'wick')
-            .attr('x1', d => activeXScale(new Date(d.startTime)))
-            .attr('x2', d => activeXScale(new Date(d.startTime)))
-            .attr('y1', d => yScale(d.high))
-            .attr('y2', d => yScale(d.low))
-            .attr('stroke', d => d.close >= d.open ? '#22c55e' : '#ef4444');
-
-        // Update candle bodies
-        allCandlesticks.selectAll('rect.candle').remove();
-        allCandlesticks.append('rect')
-            .attr('class', 'candle')
-            .attr('x', d => activeXScale(new Date(d.startTime)) - candleWidth / 2)
-            .attr('y', d => yScale(Math.max(d.open, d.close)))
-            .attr('width', candleWidth)
-            .attr('height', d => Math.max(Math.abs(yScale(d.open) - yScale(d.close)), 1))
-            .attr('fill', d => d.close >= d.open ? '#22c55e' : '#ef4444');
-
-        // Update volume bars
-        const volumeBars = volumeGroup.selectAll('.volume-bar')
-            .data(newData, d => d.startTime);
-
-        volumeBars.exit().remove();
-
-        const newVolumeBars = volumeBars.enter()
-            .append('rect')
-            .attr('class', 'volume-bar');
-
-        newVolumeBars.merge(volumeBars)
-            .attr('x', d => activeXScale(new Date(d.startTime)) - candleWidth / 2)
-            .attr('y', d => volumeScale(d.volume))
-            .attr('width', candleWidth)
-            .attr('height', d => 100 - volumeScale(d.volume))
-            .attr('fill', d => d.close >= d.open ? '#22c55e40' : '#ef444440')
-            .attr('stroke', d => d.close >= d.open ? '#22c55e' : '#ef4444')
-            .attr('stroke-width', 0.5);
-
-        // Update Y-axis for new price range
-        const yAxis = svg.select('.y-axis');
-        if (yAxis.node()) {
-            yAxis.call(d3.axisLeft(yScale).tickFormat(d => `₹${d.toFixed(2)}`));
-        }
-
-        // Update grid
-        const yGrid = svg.select('.y-grid');
-        if (yGrid.node()) {
-            yGrid.call(d3.axisLeft(yScale)
-                .ticks(8)
-                .tickSize(-scaleRef.current.width)
-                .tickFormat('')
-            )
-                .call(g => g.select('.domain').remove())
-                .call(g => g.selectAll('.tick line')
-                    .attr('stroke', '#1f2937')
-                    .attr('stroke-opacity', 0.1));
-        }
-
-        console.log('Chart data updated while preserving zoom/pan state');
-    };
-
-
     const updateChart = (symbol) => {
-        if (!svgRef.current || !dataRef.current[symbol]?.length) {
-            console.log('UpdateChart called but missing requirements:', {
-                svgRef: !!svgRef.current,
-                data: !!dataRef.current[symbol]?.length
-            });
-            return;
-        }
-
-        console.log('Updating chart for', symbol, 'with', dataRef.current[symbol].length, 'data points');
+        if (!svgRef.current || !dataRef.current[symbol]?.length) return;
 
         // Clear previous content
         d3.select(svgRef.current).selectAll('*').remove();
-
-        // Reset scale reference to avoid stale data
-        scaleRef.current = {};
-
         const data = dataRef.current[symbol];
 
         // Set up dimensions with better spacing for price labels
@@ -513,7 +453,7 @@ export default function Dashboard() {
             .range([volumeHeight, 0]);
 
         // Store scales for price indicator updates
-        scaleRef.current = { xScale, yScale, width, margin, currentTransform: null, currentXScale: null };
+        scaleRef.current = { xScale, yScale, width, margin };
 
         // Add clip path
         svg.append('defs')
@@ -532,7 +472,7 @@ export default function Dashboard() {
         // Add gradient background
         const gradient = svg.append('defs')
             .append('linearGradient')
-            .attr('id', `chart-gradient-${symbol}`) // Make ID unique
+            .attr('id', 'chart-gradient')
             .attr('x1', '0%')
             .attr('y1', '0%')
             .attr('x2', '0%')
@@ -552,7 +492,7 @@ export default function Dashboard() {
         chartGroup.append('rect')
             .attr('width', width)
             .attr('height', height)
-            .attr('fill', `url(#chart-gradient-${symbol})`);
+            .attr('fill', 'url(#chart-gradient)');
 
         // Create chart content group
         const contentGroup = chartGroup.append('g')
@@ -656,9 +596,9 @@ export default function Dashboard() {
         // Initial axes setup
         updateAxes(xScale);
 
-        // Setup zoom/pan behavior
+        // Setup zoom/pan behavior - FIXED VERSION
         const zoom = d3.zoom()
-            .scaleExtent([0.5, 20])
+            .scaleExtent([0.5, 10])
             .extent([[0, 0], [width, height]])
             .on('zoom', (event) => {
                 const transform = event.transform;
@@ -674,17 +614,45 @@ export default function Dashboard() {
                     .selectAll('rect.candle')
                     .attr('x', d => newXScale(new Date(d.startTime)) - candleWidth / 2);
 
-                // Update volume bars position
-                volumeGroup.selectAll('.volume-bar')
+                contentGroup.selectAll('.volume-bar')
                     .attr('x', d => newXScale(new Date(d.startTime)) - candleWidth / 2);
 
-                // Update axes and grid
                 updateAxes(newXScale);
                 updateGrid(newXScale);
 
-                // Store the current transform and scale for live updates
+                // Store the current transform
                 scaleRef.current.currentTransform = transform;
                 scaleRef.current.currentXScale = newXScale;
+
+                // Check if we need to fetch data for the new view area
+                const viewDomain = newXScale.domain();
+                const currentData = dataRef.current[selectedStock] || [];
+                const dataTimeRange = currentData.length > 0 ? [
+                    new Date(currentData[0].startTime),
+                    new Date(currentData[currentData.length - 1].startTime)
+                ] : [null, null];
+
+                // If panned outside current data range, fetch more data
+                if (currentData.length > 0 &&
+                    (viewDomain[0] < dataTimeRange[0] || viewDomain[1] > dataTimeRange[1])) {
+                    // Debounce the fetch to avoid too many requests
+                    clearTimeout(scaleRef.current.fetchTimeout);
+                    scaleRef.current.fetchTimeout = setTimeout(async () => {
+                        try {
+                            const expandedStart = new Date(Math.min(viewDomain[0], dataTimeRange[0]).getTime() - (60000 * 30)); // 30 min buffer
+                            const expandedEnd = new Date(Math.max(viewDomain[1], dataTimeRange[1]).getTime() + (60000 * 30));
+
+                            const newData = await fetchDataForRange(selectedStock, selectedTimeFrame, expandedStart, expandedEnd);
+                            if (newData.length > 0) {
+                                const mergedData = mergeData(currentData, newData);
+                                dataRef.current[selectedStock] = mergedData;
+                                updateChartData(selectedStock, mergedData);
+                            }
+                        } catch (error) {
+                            console.error('Error fetching expanded data range:', error);
+                        }
+                    }, 500);
+                }
             });
 
         // Apply zoom behavior to a transparent overlay
@@ -717,13 +685,13 @@ export default function Dashboard() {
             const timeStr = new Date(d.startTime).toLocaleTimeString();
             tooltip.style('display', 'block')
                 .html(`
-                Time: ${timeStr}<br/>
-                Open: ₹${d.open.toFixed(2)}<br/>
-                High: ₹${d.high.toFixed(2)}<br/>
-                Low: ₹${d.low.toFixed(2)}<br/>
-                Close: ₹${d.close.toFixed(2)}<br/>
-                Volume: ${d.volume.toLocaleString()}
-            `)
+                    Time: ${timeStr}<br/>
+                    Open: ₹${d.open.toFixed(2)}<br/>
+                    High: ₹${d.high.toFixed(2)}<br/>
+                    Low: ₹${d.low.toFixed(2)}<br/>
+                    Close: ₹${d.close.toFixed(2)}<br/>
+                    Volume: ${d.volume.toLocaleString()}
+                `)
                 .style('left', (event.pageX + 10) + 'px')
                 .style('top', (event.pageY - 10) + 'px');
         })
@@ -735,17 +703,11 @@ export default function Dashboard() {
                 tooltip.style('display', 'none');
             });
 
-        console.log('Chart updated successfully for', symbol);
-
         // Update price indicator if needed
-        const stockData = stocks.find(s => s.symbol === symbol);
-        if (stockData?.currentPrice) {
-            setTimeout(() => {
-                updatePriceIndicator(stockData.currentPrice);
-            }, 100);
+        if (stocks.find(s => s.symbol === symbol)?.currentPrice) {
+            updatePriceIndicator(stocks.find(s => s.symbol === symbol).currentPrice);
         }
     };
-
 
     return (
         <div className="min-h-screen bg-gray-900 flex">
