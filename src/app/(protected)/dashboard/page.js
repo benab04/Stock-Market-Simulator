@@ -8,6 +8,7 @@ export default function Dashboard() {
     const svgRef = useRef(null);
     const dataRef = useRef({});
     const scaleRef = useRef({});
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const [stocks, setStocks] = useState([]);
@@ -768,81 +769,191 @@ export default function Dashboard() {
             }, 100);
         }
     };
-
     return (
-        <div className="min-h-screen bg-gray-900 flex">
-            {/* Sidebar */}
-            <div className="w-64 bg-gray-800 p-6">
-                <h2 className="text-xl font-bold text-white mb-6">Stocks</h2>
-                <div className="space-y-2">
-                    {stocks.map((stock) => (
-                        <button
-                            key={stock.symbol}
-                            onClick={() => setSelectedStock(stock.symbol)}
-                            className={`w-full text-left px-4 py-2 rounded 
-                                ${selectedStock === stock.symbol
-                                    ? 'bg-blue-600 text-white'
-                                    : 'text-gray-300 hover:bg-gray-700'}`}
-                        >
-                            <div className="flex justify-between items-center">
-                                <span>{stock.symbol}</span>
-                                <span className={`text-sm ${stock.currentPrice > (stock.previousClose || 0)
-                                    ? 'text-green-400'
-                                    : 'text-red-400'
-                                    }`}>
-                                    ₹{stock.currentPrice?.toFixed(2)}
-                                </span>
-                            </div>
-                        </button>
-                    ))}
+        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex flex-col lg:flex-row">
+            {/* Mobile Header */}
+            <div className="lg:hidden bg-gray-800/90 backdrop-blur-sm border-b border-gray-700/50 p-4 sticky top-0 z-50">
+                <div className="flex items-center justify-between">
+                    <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+                        Stock Dashboard
+                    </h1>
+                    <button
+                        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                        className="lg:hidden p-2 rounded-lg bg-gray-700/50 text-gray-300 hover:text-white hover:bg-gray-600/50 transition-all duration-200"
+                    >
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
                 </div>
             </div>
 
-            {/* Main content */}
-            <div className="flex-1 p-8">
-                {isLoading ? (
-                    <div className="flex justify-center items-center h-screen">
-                        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white"></div>
+            {/* Sidebar */}
+            <div className={`${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:relative z-40 w-80 lg:w-72 xl:w-80 bg-gray-800/95 backdrop-blur-sm border-r border-gray-700/50 transition-transform duration-300 ease-in-out h-full lg:h-auto`}>
+                <div className="p-6 h-full overflow-y-auto">
+                    <div className="hidden lg:block mb-8">
+                        <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent mb-2">
+                            Portfolio
+                        </h2>
+                        <p className="text-gray-400 text-sm">Live market data</p>
                     </div>
-                ) : error ? (
-                    <div className="text-red-500 text-center">{error}</div>
-                ) : (
-                    <div className="space-y-8">
-                        <h1 className="text-3xl font-bold text-white">Stock Price Dashboard</h1>
 
-                        <div className="grid grid-cols-1 gap-8">
-                            <div className="bg-gray-800 rounded-lg p-6 shadow-xl">
-                                <div className="flex justify-between items-center mb-6">
-                                    <div className="flex items-center space-x-6">
-                                        <h2 className="text-xl text-white font-semibold">
-                                            {selectedStock ? selectedStock : 'Select a Stock'}
-                                        </h2>
-                                        <div className="px-3 py-1 bg-gray-700 rounded text-sm text-gray-400">
-                                            Updates every 30s
+                    <div className="space-y-3">
+                        {stocks.map((stock) => {
+                            const isSelected = selectedStock === stock.symbol;
+                            const priceChange = stock.currentPrice - (stock.previousClose || 0);
+                            const isPositive = priceChange >= 0;
+
+                            return (
+                                <button
+                                    key={stock.symbol}
+                                    onClick={() => {
+                                        setSelectedStock(stock.symbol);
+                                        setMobileMenuOpen(false);
+                                    }}
+                                    className={`w-full text-left p-4 rounded-xl transition-all duration-200 border backdrop-blur-sm group hover:scale-[1.02] ${isSelected
+                                            ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-blue-500/50 shadow-lg shadow-blue-500/10'
+                                            : 'bg-gray-700/30 border-gray-600/30 hover:bg-gray-700/50 hover:border-gray-600/50'
+                                        }`}
+                                >
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div>
+                                            <span className={`font-semibold text-lg ${isSelected ? 'text-white' : 'text-gray-200'}`}>
+                                                {stock.symbol}
+                                            </span>
+                                            <div className="text-xs text-gray-400 mt-1">
+                                                {stock.name || 'Stock Name'}
+                                            </div>
                                         </div>
-                                        <div className="px-3 py-1 bg-blue-700 rounded text-sm text-blue-200">
-                                            Click and drag to pan • Scroll to zoom
+                                        <div className="text-right">
+                                            <div className={`font-bold text-lg ${isSelected ? 'text-white' : 'text-gray-200'}`}>
+                                                ₹{stock.currentPrice?.toFixed(2) || '0.00'}
+                                            </div>
+                                            <div className={`text-xs flex items-center justify-end ${isPositive ? 'text-green-400' : 'text-red-400'
+                                                }`}>
+                                                <svg className={`w-3 h-3 mr-1 ${isPositive ? 'rotate-0' : 'rotate-180'}`} fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fillRule="evenodd" d="M5.293 7.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L10 4.414 6.707 7.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                                                </svg>
+                                                {Math.abs(priceChange).toFixed(2)}
+                                            </div>
                                         </div>
                                     </div>
-                                    {timeFrameButtons}
-                                </div>
+                                    <div className="w-full bg-gray-600/30 rounded-full h-1">
+                                        <div
+                                            className={`h-1 rounded-full transition-all duration-500 ${isSelected ? 'bg-gradient-to-r from-blue-500 to-purple-500' : 'bg-gray-500'
+                                                }`}
+                                            style={{ width: isSelected ? '100%' : '0%' }}
+                                        ></div>
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
 
+            {/* Overlay for mobile */}
+            {mobileMenuOpen && (
+                <div
+                    className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-30"
+                    onClick={() => setMobileMenuOpen(false)}
+                ></div>
+            )}
+
+            {/* Main content */}
+            <div className="flex-1 p-4 lg:p-8 overflow-hidden">
+                {isLoading ? (
+                    <div className="flex flex-col justify-center items-center h-[calc(100vh-8rem)] lg:h-screen">
+                        <div className="relative">
+                            <div className="animate-spin rounded-full h-16 w-16 lg:h-20 lg:w-20 border-4 border-gray-600"></div>
+                            <div className="animate-spin rounded-full h-16 w-16 lg:h-20 lg:w-20 border-t-4 border-blue-500 absolute top-0 left-0"></div>
+                        </div>
+                        <p className="text-gray-400 mt-4 text-sm lg:text-base">Loading market data...</p>
+                    </div>
+                ) : error ? (
+                    <div className="flex flex-col justify-center items-center h-[calc(100vh-8rem)] lg:h-screen">
+                        <div className="bg-red-900/20 border border-red-700/50 rounded-xl p-6 text-center max-w-md">
+                            <svg className="w-12 h-12 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                            </svg>
+                            <h3 className="text-red-400 font-semibold mb-2">Error Loading Data</h3>
+                            <p className="text-gray-400 text-sm">{error}</p>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="space-y-6 lg:space-y-8 h-full">
+                        {/* Header */}
+                        <div className="hidden lg:block">
+                            <h1 className="text-3xl xl:text-4xl font-bold bg-gradient-to-r from-white via-blue-100 to-white bg-clip-text text-transparent mb-2">
+                                Stock Market Dashboard
+                            </h1>
+                            <p className="text-gray-400">Real-time market analysis and trading</p>
+                        </div>
+
+                        {/* Chart Section */}
+                        <div className="bg-gray-800/40 backdrop-blur-sm border border-gray-700/50 rounded-2xl shadow-2xl flex-1 flex flex-col min-h-0">
+                            <div className="p-4 lg:p-6 border-b border-gray-700/50">
+                                <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center space-y-4 lg:space-y-0">
+                                    <div className="flex flex-col lg:flex-row lg:items-center lg:space-x-6">
+                                        <h2 className="text-xl lg:text-2xl text-white font-semibold flex items-center">
+                                            {selectedStock ? (
+                                                <>
+                                                    <span className="bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+                                                        {selectedStock}
+                                                    </span>
+                                                    <span className="ml-3 text-sm lg:text-base text-gray-400">
+                                                        ₹{stocks.find(s => s.symbol === selectedStock)?.currentPrice?.toFixed(2) || '0.00'}
+                                                    </span>
+                                                </>
+                                            ) : (
+                                                <span className="text-gray-400">Select a Stock</span>
+                                            )}
+                                        </h2>
+                                        <div className="flex flex-wrap gap-2">
+                                            <div className="px-3 py-1 bg-gray-700/50 rounded-full text-xs text-gray-400 flex items-center">
+                                                <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
+                                                Live Updates
+                                            </div>
+                                            <div className="px-3 py-1 bg-blue-700/30 border border-blue-600/30 rounded-full text-xs text-blue-300">
+                                                Interactive Chart
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {timeFrameButtons}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex-1 p-4 lg:p-6 min-h-0">
                                 {selectedStock ? (
-                                    <div>
-                                        <div className="relative overflow-x-auto">
-                                            <svg ref={svgRef} className="w-full h-[600px]" />
+                                    <div className="h-full flex flex-col space-y-6">
+                                        <div className="flex-1 min-h-0 relative">
+                                            <div className="absolute inset-0 bg-gradient-to-t from-gray-900/20 to-transparent rounded-xl"></div>
+                                            <div className="relative h-full overflow-hidden rounded-xl">
+                                                <svg ref={svgRef} className="w-full h-full min-h-[400px] lg:min-h-[500px]" />
+                                            </div>
                                         </div>
                                         <TradeForm
                                             stock={stocks.find(s => s.symbol === selectedStock)}
                                             onTrade={(data) => {
                                                 console.log('Trade executed:', data);
-                                                // You could update user balance here if needed
                                             }}
                                         />
                                     </div>
                                 ) : (
-                                    <div className="flex justify-center items-center h-96 text-gray-400">
-                                        Select a stock to view chart
+                                    <div className="flex flex-col justify-center items-center h-full text-center">
+                                        <div className="mb-6">
+                                            <svg className="w-16 h-16 lg:w-20 lg:w-20 text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                            </svg>
+                                        </div>
+                                        <h3 className="text-xl lg:text-2xl font-semibold text-gray-400 mb-2">
+                                            Select a Stock
+                                        </h3>
+                                        <p className="text-gray-500 max-w-md">
+                                            Choose a stock from the sidebar to view its chart and start trading
+                                        </p>
                                     </div>
                                 )}
                             </div>
