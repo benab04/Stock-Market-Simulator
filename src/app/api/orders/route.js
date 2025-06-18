@@ -18,10 +18,6 @@ export async function GET(request) {
 
         await dbConnect();
 
-        // Debug: Log session user email
-        console.log('Session:', session);
-        console.log('Session user email:', session.user.email);
-
         // Get query parameters for filtering
         const { searchParams } = new URL(request.url);
         const status = searchParams.get('status');

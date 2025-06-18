@@ -58,7 +58,6 @@ export default function OrdersPage() {
             if (!response.ok) throw new Error('Failed to fetch orders');
 
             const data = await response.json();
-            console.log('Fetched data:', data); // Debug log
             setOrders(data.orders);
             setPagination(data.pagination);
 
