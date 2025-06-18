@@ -153,3 +153,5 @@ export default function Portfolio() {
         </div>
     );
 }
+
+export const dynamic = 'force-dynamic'

@@ -17,11 +17,18 @@ const __dirname = dirname(__filename);
 // Define the Stock Schema directly in this file to avoid import issues
 const priceHistorySchema = new mongoose.Schema({
     timestamp: { type: Date, required: true },
+    price: { type: Number, required: true }
+});
+
+// Schema for OHLC candles
+const candlestickSchema = new mongoose.Schema({
+    startTime: { type: Date, required: true },
+    endTime: { type: Date, required: true },
     open: { type: Number, required: true },
     high: { type: Number, required: true },
     low: { type: Number, required: true },
     close: { type: Number, required: true },
-    volume: { type: Number, required: true }
+    volume: { type: Number, default: 0 }
 });
 
 const stockSchema = new mongoose.Schema({
@@ -61,14 +68,30 @@ const stockSchema = new mongoose.Schema({
     volatilityFactor: {
         type: Number,
         required: true,
-        default: 3000
+        default: 3000 // Default V value for price calculation
     },
+    // Raw price history (1-minute ticks)
     priceHistory: [priceHistorySchema],
+    // OHLC candles for different timeframes
+    candles_5min: [candlestickSchema],
+    candles_30min: [candlestickSchema],
+    candles_2hour: [candlestickSchema],
+    // Timestamps for the last price update in each timeframe
+    lastCandle_5min: { type: Date },
+    lastCandle_30min: { type: Date },
+    lastCandle_2hour: { type: Date },
     lastUpdated: {
         type: Date,
         default: Date.now
     }
 });
+
+// Add indexes for faster queries
+stockSchema.index({ symbol: 1 });
+stockSchema.index({ symbol: 1, "priceHistory.timestamp": -1 });
+stockSchema.index({ symbol: 1, "candles_5min.startTime": -1 });
+stockSchema.index({ symbol: 1, "candles_30min.startTime": -1 });
+stockSchema.index({ symbol: 1, "candles_2hour.startTime": -1 });
 
 // Create the Stock model
 const Stock = mongoose.models.Stock || mongoose.model('Stock', stockSchema);
@@ -85,7 +108,10 @@ const stocks = [
         description: 'Large-cap IT services leader, stable EPS, bluechip favorite.',
         circuitLimit: 5,
         volatilityFactor: 5000, // Bluechip stock
-        priceHistory: []
+        priceHistory: [],
+        candles_5min: [],
+        candles_30min: [],
+        candles_2hour: []
     },
     {
         symbol: 'TECHST',
@@ -96,7 +122,10 @@ const stocks = [
         description: 'Mid-cap technology solutions provider with growing market share.',
         circuitLimit: 7,
         volatilityFactor: 3000, // Regular stock
-        priceHistory: []
+        priceHistory: [],
+        candles_5min: [],
+        candles_30min: [],
+        candles_2hour: []
     },
     {
         symbol: 'QSTART',
@@ -107,7 +136,10 @@ const stocks = [
         description: 'Small-cap quantum computing startup with high growth potential.',
         circuitLimit: 10,
         volatilityFactor: 1000, // Volatile small-cap
-        priceHistory: []
+        priceHistory: [],
+        candles_5min: [],
+        candles_30min: [],
+        candles_2hour: []
     }
 ];
 
@@ -129,9 +161,19 @@ async function seedDatabase() {
 
         // Initialize price history for each stock
         console.log('Initializing price history...');
+        const currentTime = new Date();
+
         for (const stock of result) {
-            const initialPrice = {
-                timestamp: new Date(),
+            // Add initial price history entry (matches priceHistorySchema)
+            const initialPriceHistory = {
+                timestamp: currentTime,
+                price: stock.currentPrice
+            };
+
+            // Add initial candle for each timeframe
+            const initialCandle = {
+                startTime: currentTime,
+                endTime: new Date(currentTime.getTime() + 5 * 60 * 1000), // 5 minutes later
                 open: stock.currentPrice,
                 high: stock.currentPrice,
                 low: stock.currentPrice,
@@ -140,10 +182,27 @@ async function seedDatabase() {
             };
 
             await Stock.findByIdAndUpdate(stock._id, {
-                $push: { priceHistory: initialPrice }
+                $push: {
+                    priceHistory: initialPriceHistory,
+                    candles_5min: initialCandle,
+                    candles_30min: {
+                        ...initialCandle,
+                        endTime: new Date(currentTime.getTime() + 30 * 60 * 1000) // 30 minutes
+                    },
+                    candles_2hour: {
+                        ...initialCandle,
+                        endTime: new Date(currentTime.getTime() + 2 * 60 * 60 * 1000) // 2 hours
+                    }
+                },
+                $set: {
+                    lastCandle_5min: currentTime,
+                    lastCandle_30min: currentTime,
+                    lastCandle_2hour: currentTime,
+                    lastUpdated: currentTime
+                }
             });
         }
-        console.log('Initialized price history for all stocks');
+        console.log('Initialized price history and candles for all stocks');
 
         await mongoose.disconnect();
         console.log('Database seeding completed successfully');
@@ -156,4 +215,4 @@ async function seedDatabase() {
 }
 
 // Run the seeding function
-seedDatabase(); 
+seedDatabase();
