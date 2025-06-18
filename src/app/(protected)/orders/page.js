@@ -1,8 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import moment from 'moment-timezone';
+
+// Custom hook for debouncing
+function useDebounce(value, delay) {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedValue(value);
+        }, delay);
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [value, delay]);
+
+    return debouncedValue;
+}
 
 export default function OrdersPage() {
     const [orders, setOrders] = useState([]);
@@ -17,12 +34,24 @@ export default function OrdersPage() {
 
     const { data: session } = useSession();
 
-    const fetchOrders = async () => {
+    // Debounce the symbol search with 500ms delay
+    const debouncedSymbol = useDebounce(filters.symbol, 500);
+
+    // Create a memoized filters object that only changes when non-symbol filters or debounced symbol changes
+    const effectiveFilters = useMemo(() => ({
+        status: filters.status,
+        symbol: debouncedSymbol,
+        type: filters.type,
+    }), [filters.status, filters.type, debouncedSymbol]);
+
+    const fetchOrders = useCallback(async (resetPage = false) => {
         try {
             setLoading(true);
+            const currentPage = resetPage ? 1 : pagination.currentPage;
+
             const queryParams = new URLSearchParams({
-                page: pagination.currentPage,
-                ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v))
+                page: currentPage,
+                ...Object.fromEntries(Object.entries(effectiveFilters).filter(([_, v]) => v))
             });
 
             const response = await fetch(`/api/orders?${queryParams}`);
@@ -32,18 +61,53 @@ export default function OrdersPage() {
             console.log('Fetched data:', data); // Debug log
             setOrders(data.orders);
             setPagination(data.pagination);
+
+            if (resetPage) {
+                setPagination(prev => ({ ...prev, currentPage: 1 }));
+            }
         } catch (err) {
             setError(err.message);
         } finally {
             setLoading(false);
         }
-    };
+    }, [effectiveFilters, pagination.currentPage]);
 
+    // Effect for initial load and session changes
     useEffect(() => {
         if (session) {
             fetchOrders();
         }
-    }, [session, pagination.currentPage, filters]);
+    }, [session]);
+
+    // Effect for filter changes (will trigger when effectiveFilters changes)
+    useEffect(() => {
+        if (session) {
+            fetchOrders(true); // Reset to page 1 when filters change
+        }
+    }, [effectiveFilters, session]);
+
+    // Effect for pagination changes only
+    useEffect(() => {
+        if (session && pagination.currentPage > 1) {
+            fetchOrders();
+        }
+    }, [pagination.currentPage, session]);
+
+    const handleFilterChange = (filterType, value) => {
+        setFilters(prev => ({
+            ...prev,
+            [filterType]: value
+        }));
+
+        // Reset pagination when filters change
+        if (filterType !== 'symbol') {
+            setPagination(prev => ({ ...prev, currentPage: 1 }));
+        }
+    };
+
+    const handlePageChange = (newPage) => {
+        setPagination(prev => ({ ...prev, currentPage: newPage }));
+    };
 
     const getStatusColor = (status) => {
         switch (status.toLowerCase()) {
@@ -78,7 +142,7 @@ export default function OrdersPage() {
             .format('DD/MM/YYYY');
     };
 
-    if (loading) {
+    if (loading && orders.length === 0) {
         return (
             <div className="min-h-screen bg-gray-900 text-white p-8">
                 <div className="animate-pulse">
@@ -105,14 +169,22 @@ export default function OrdersPage() {
 
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
-            <h1 className="text-3xl font-bold mb-8">Order History</h1>
+            <div className="flex items-center justify-between mb-8">
+                <h1 className="text-3xl font-bold">Order History</h1>
+                {loading && orders.length > 0 && (
+                    <div className="flex items-center space-x-2 text-sm text-gray-400">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                        <span>Loading...</span>
+                    </div>
+                )}
+            </div>
 
             {/* Filters */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <select
                     value={filters.type}
-                    onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value }))}
-                    className="bg-gray-800 border border-gray-700 rounded-lg p-2"
+                    onChange={(e) => handleFilterChange('type', e.target.value)}
+                    className="bg-gray-800 border border-gray-700 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                     <option value="">All Types</option>
                     <option value="buy">Buy</option>
@@ -121,8 +193,8 @@ export default function OrdersPage() {
 
                 <select
                     value={filters.status}
-                    onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-                    className="bg-gray-800 border border-gray-700 rounded-lg p-2"
+                    onChange={(e) => handleFilterChange('status', e.target.value)}
+                    className="bg-gray-800 border border-gray-700 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                     <option value="">All Status</option>
                     <option value="executed">Executed</option>
@@ -130,17 +202,29 @@ export default function OrdersPage() {
                     <option value="cancelled">Cancelled</option>
                 </select>
 
-                <input
-                    type="text"
-                    placeholder="Search by Symbol"
-                    value={filters.symbol}
-                    onChange={(e) => setFilters(prev => ({ ...prev, symbol: e.target.value }))}
-                    className="bg-gray-800 border border-gray-700 rounded-lg p-2"
-                />
+                <div className="relative">
+                    <input
+                        type="text"
+                        placeholder="Search by Symbol"
+                        value={filters.symbol}
+                        onChange={(e) => handleFilterChange('symbol', e.target.value)}
+                        className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    {filters.symbol && debouncedSymbol !== filters.symbol && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Orders Table */}
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto relative">
+                {loading && orders.length > 0 && (
+                    <div className="absolute top-0 left-0 right-0 bg-gray-900/80 backdrop-blur-sm z-10 rounded-lg">
+                        <div className="h-2 bg-blue-500 animate-pulse rounded-full"></div>
+                    </div>
+                )}
                 <table className="w-full border-collapse">
                     <thead>
                         <tr className="bg-gray-800 text-left">
@@ -157,12 +241,12 @@ export default function OrdersPage() {
                         {orders.length === 0 ? (
                             <tr>
                                 <td colSpan="7" className="p-8 text-center text-gray-400">
-                                    No orders found
+                                    {loading ? 'Loading orders...' : 'No orders found'}
                                 </td>
                             </tr>
                         ) : (
                             orders.map((order) => (
-                                <tr key={order._id} className="hover:bg-gray-800/50">
+                                <tr key={order._id} className="hover:bg-gray-800/50 transition-colors">
                                     <td className="p-4">
                                         <div className="flex flex-col">
                                             <span className="text-sm">
@@ -198,8 +282,8 @@ export default function OrdersPage() {
             {pagination.pages > 1 && (
                 <div className="mt-6 flex justify-center space-x-2">
                     <button
-                        onClick={() => setPagination(prev => ({ ...prev, currentPage: prev.currentPage - 1 }))}
-                        disabled={pagination.currentPage === 1}
+                        onClick={() => handlePageChange(pagination.currentPage - 1)}
+                        disabled={pagination.currentPage === 1 || loading}
                         className="px-4 py-2 bg-gray-800 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700 transition-colors"
                     >
                         Previous
@@ -208,8 +292,8 @@ export default function OrdersPage() {
                         Page {pagination.currentPage} of {pagination.pages}
                     </span>
                     <button
-                        onClick={() => setPagination(prev => ({ ...prev, currentPage: prev.currentPage + 1 }))}
-                        disabled={pagination.currentPage === pagination.pages}
+                        onClick={() => handlePageChange(pagination.currentPage + 1)}
+                        disabled={pagination.currentPage === pagination.pages || loading}
                         className="px-4 py-2 bg-gray-800 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700 transition-colors"
                     >
                         Next
