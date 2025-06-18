@@ -57,12 +57,12 @@ export default function Navbar() {
 
                                 {isUserMenuOpen && (
                                     <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-gray-700 ring-1 ring-black ring-opacity-5">
-                                        <Link href="/dashboard/profile" className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-600 hover:text-white">
+                                        {/* <Link href="/dashboard/profile" className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-600 hover:text-white">
                                             Your Profile
                                         </Link>
                                         <Link href="/dashboard/settings" className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-600 hover:text-white">
                                             Settings
-                                        </Link>
+                                        </Link> */}
                                         <button
                                             onClick={handleSignOut}
                                             className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-600 hover:text-white"
@@ -133,12 +133,12 @@ export default function Navbar() {
                             </div>
                         </div>
                         <div className="mt-3 px-2 space-y-1">
-                            <Link href="/dashboard/profile" className="block px-3 py-2 rounded-md text-base font-medium text-gray-400 hover:text-white hover:bg-gray-700">
+                            {/* <Link href="/dashboard/profile" className="block px-3 py-2 rounded-md text-base font-medium text-gray-400 hover:text-white hover:bg-gray-700">
                                 Your Profile
                             </Link>
                             <Link href="/dashboard/settings" className="block px-3 py-2 rounded-md text-base font-medium text-gray-400 hover:text-white hover:bg-gray-700">
                                 Settings
-                            </Link>
+                            </Link> */}
                             <button
                                 onClick={handleSignOut}
                                 className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-400 hover:text-white hover:bg-gray-700"
