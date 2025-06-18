@@ -112,10 +112,10 @@ export default function Navbar() {
                         <Link href="/dashboard" className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">
                             Dashboard
                         </Link>
-                        <Link href="/dashboard/portfolio" className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">
+                        <Link href="/portfolio" className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">
                             Portfolio
                         </Link>
-                        <Link href="/dashboard/orders" className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">
+                        <Link href="/orders" className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">
                             Orders
                         </Link>
                     </div>
