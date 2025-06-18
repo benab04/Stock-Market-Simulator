@@ -1,114 +1,163 @@
 # Stock Trading Simulator
 
-This is a real-time stock trading simulator built with Next.js, featuring live candlestick charts and real-time price updates.
+This is a real-time stock trading simulator built with Next.js, featuring live candlestick charts, real-time price updates, portfolio tracking, and simulated trading.
 
-## Real-time Candlestick Updates
+## Features
 
-The frontend implements a sophisticated real-time update system for candlesticks and price indicators. Here's how it works:
+### 1. Authentication & Authorization
 
-### 1. Server-Sent Events (SSE) Setup
+- Secure user authentication using NextAuth.js
+- Protected routes for authenticated users
+- Persistent sessions and token management
+
+### 2. Real-time Trading Dashboard
+
+- Live candlestick charts with multiple timeframes
+- Real-time price updates via Server-Sent Events (SSE)
+- Trade execution with market and limit orders
+- Live balance updates
+
+### 3. Portfolio Management
+
+- Real-time portfolio valuation
+- Detailed P&L tracking (realized and unrealized)
+- Portfolio allocation visualization
+- Transaction history
+- Current holdings with live price updates
+
+## Architecture
+
+### API Routes
+
+#### Authentication
+
+- `/api/auth/[...nextauth]` - NextAuth.js authentication endpoints
+- `/api/auth/register` - User registration
+- `/api/auth/login` - User login
+
+#### Trading & Portfolio
+
+- `/api/trade` - Execute trades (POST)
+- `/api/portfolio` - Get portfolio summary and holdings (GET)
+- `/api/orders` - Manage and view orders (GET, POST)
+- `/api/user/balance` - Get and update user balance (GET, PUT)
+
+#### Market Data
+
+- `/api/stockData` - Real-time stock price updates (SSE)
+- `/api/stockHistory` - Historical price data (GET)
+- `/api/stocks` - List available stocks (GET)
+
+### Real-time Update Mechanisms
+
+#### 1. Server-Sent Events (SSE)
+
+The application uses SSE for real-time price updates:
 
 ```javascript
 // In dashboard/page.js
 eventSource = new EventSource("/api/stockData");
 ```
 
-### 2. Data Flow Process
+#### 2. Portfolio Updates
 
-#### a. Price Updates (Every 30 seconds)
+The portfolio page implements real-time updates through:
 
-1. Server sends price updates via SSE
-2. Frontend receives updates in `onmessage` handler
-3. Current price is immediately updated in the UI
-4. Price indicator (line and label) is updated in real-time
+1. Initial data fetch on page load
+2. SSE subscription for price updates
+3. Automatic recalculation of portfolio value and P&L
+4. WebSocket connection for trade confirmations
 
-#### b. Candlestick Updates
+### Database Models
 
-1. After price update, frontend fetches new historical data
-2. Candlesticks are aggregated on the backend based on timeframe
-3. Complete chart is redrawn with new data
+#### User Model
 
-### 3. Key Functions
+- Stores user profile, authentication, and balance information
+- Optimized queries for frequent balance updates
 
-#### Price Indicator Updates
+#### Order Model
 
-```javascript
-const updatePriceIndicator = (currentPrice) => {
-  // Uses stored scales from the main chart
-  const { xScale, yScale, width } = scaleRef.current;
+- Tracks all user trades and orders
+- Indexed for efficient portfolio aggregation
+- Supports market and limit orders
 
-  // Updates price line and label in real-time
-  // without waiting for candlestick updates
-};
-```
+#### Stock Model
 
-#### Chart Updates
+- Maintains current price and metadata
+- Optimized for high-frequency price updates
 
-```javascript
-const updateChart = (symbol) => {
-  // Redraws entire chart with new data
-  // Stores scales for price indicator updates
-  scaleRef.current = { xScale, yScale, width };
-};
-```
+## Performance Considerations
 
-### 4. Update Process Flow
+### API Optimization
 
-1. **Initial Load**
+1. **Connection Pooling**: MongoDB connections are pooled to reduce overhead
+2. **Caching**: Frequently accessed data is cached at various levels:
 
-   - Fetches initial stock list
-   - Loads historical data for selected stock
-   - Creates initial chart
+   - In-memory cache for current prices
+   - Redis cache for historical data
+   - Browser caching for static assets
 
-2. **Real-time Updates**
+3. **Query Optimization**:
+   - Aggregation pipelines for portfolio calculations
+   - Indexed fields for frequent queries
+   - Selective field projection to reduce payload size
 
-   - New price received → Update price indicator
-   - Fetch new historical data
-   - Update candlesticks if new candle formed
-   - Store new scales for future updates
+### Memory Management
 
-3. **Timeframe Changes**
-   - User selects new timeframe
-   - Fetches new historical data
-   - Redraws chart with new candle intervals
+1. Stock data is streamed in chunks to prevent memory spikes
+2. Historical data is paginated and loaded on demand
+3. SSE connections are monitored and cleaned up properly
 
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+### Build and Deployment
 
-## Getting Started
+1. Tailwind CSS optimizations:
 
-First, run the development server:is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+   - JIT mode enabled
+   - Unused styles purged in production
+   - Critical CSS inlined
+
+2. Next.js optimizations:
+   - Static pages where possible
+   - Dynamic imports for large components
+   - API routes configured for optimal Vercel deployment
 
 ## Getting Started
 
-First, run the development server:
+1. Clone the repository
+2. Install dependencies:
+
+```bash
+npm install
+```
+
+3. Set up environment variables:
+
+```env
+DATABASE_URL=your_mongodb_url
+NEXTAUTH_SECRET=your_secret
+NEXTAUTH_URL=http://localhost:3000
+```
+
+4. Seed initial stock data:
+
+```bash
+npm run seed
+```
+
+5. Start the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Contributing
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Open a Pull Request
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## License
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This project is licensed under the MIT License.
