@@ -251,7 +251,8 @@ export default function Dashboard() {
                                 if (stock.symbol === stockUpdate.symbol) {
                                     return {
                                         ...stock,
-                                        currentPrice: stockUpdate.price
+                                        currentPrice: stockUpdate.price,
+                                        previousPrice: stockUpdate.previousPrice
                                     };
                                 }
                                 return stock;
@@ -307,25 +308,29 @@ export default function Dashboard() {
     }, [isLoading, selectedStock, selectedTimeFrame]);
 
     const timeFrameButtons = (
-        <div className="flex space-x-2 mb-4">
-            <button
-                className={`px-4 py-2 rounded ${selectedTimeFrame === '5min' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-                onClick={() => setSelectedTimeFrame('5min')}
-            >
-                5 Min
-            </button>
-            <button
-                className={`px-4 py-2 rounded ${selectedTimeFrame === '30min' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-                onClick={() => setSelectedTimeFrame('30min')}
-            >
-                30 Min
-            </button>
-            <button
-                className={`px-4 py-2 rounded ${selectedTimeFrame === '2hour' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-                onClick={() => setSelectedTimeFrame('2hour')}
-            >
-                2 Hour
-            </button>
+        <div className="flex flex-wrap gap-2">
+            {[
+                { value: '5min', label: '5M', description: '5 Minutes' },
+                { value: '30min', label: '30M', description: '30 Minutes' },
+                { value: '2hour', label: '2H', description: '2 Hours' },
+            ].map((timeFrame) => (
+                <button
+                    key={timeFrame.value}
+                    className={`group relative px-4 py-2 rounded-lg font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 ${selectedTimeFrame === timeFrame.value
+                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/25 border border-blue-500/50'
+                        : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 hover:text-white border border-gray-600/30 hover:border-gray-500/50'
+                        }`}
+                    onClick={() => setSelectedTimeFrame(timeFrame.value)}
+                    title={timeFrame.description}
+                >
+                    <span className="relative z-10">{timeFrame.label}</span>
+                    {selectedTimeFrame === timeFrame.value && (
+                        <div className="absolute inset-0 bg-white/10 rounded-lg"></div>
+                    )}
+                    <div className={`absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-0 h-0.5 bg-gradient-to-r from-blue-400 to-purple-500 transition-all duration-200 ${selectedTimeFrame === timeFrame.value ? 'w-full' : 'group-hover:w-full'
+                        }`}></div>
+                </button>
+            ))}
         </div>
     );
 
@@ -801,7 +806,8 @@ export default function Dashboard() {
                     <div className="space-y-3">
                         {stocks.map((stock) => {
                             const isSelected = selectedStock === stock.symbol;
-                            const priceChange = stock.currentPrice - (stock.previousClose || 0);
+                            console.log(stock)
+                            const priceChange = stock.currentPrice - (stock.previousPrice || 0);
                             const isPositive = priceChange >= 0;
 
                             return (
@@ -812,8 +818,8 @@ export default function Dashboard() {
                                         setMobileMenuOpen(false);
                                     }}
                                     className={`w-full text-left p-4 rounded-xl transition-all duration-200 border backdrop-blur-sm group hover:scale-[1.02] ${isSelected
-                                            ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-blue-500/50 shadow-lg shadow-blue-500/10'
-                                            : 'bg-gray-700/30 border-gray-600/30 hover:bg-gray-700/50 hover:border-gray-600/50'
+                                        ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-blue-500/50 shadow-lg shadow-blue-500/10'
+                                        : 'bg-gray-700/30 border-gray-600/30 hover:bg-gray-700/50 hover:border-gray-600/50'
                                         }`}
                                 >
                                     <div className="flex justify-between items-start mb-2">

@@ -38,6 +38,11 @@ const stockSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
+    previousPrice: {
+        type: Number,
+        required: true,
+        default: 0
+    },
     riskLevel: {
         type: String,
         enum: ['Low', 'Medium', 'High'],

@@ -22,15 +22,17 @@ export async function calculateNewPrice(stock) {
 
     // Calculate price change using the formula: P(t+1) = P(t) × [1 + 0.02 × tanh(Q/V)]
     const priceChange = 1 + 0.02 * Math.tanh(Q / V);
-    const newPrice = stock.currentPrice * priceChange;
+
+    let oldPrice = stock.currentPrice
+    const newPrice = oldPrice * priceChange;
 
     // Apply circuit breaker limits
     const maxChange = 1 + (stock.circuitLimit / 100);
     const minChange = 1 - (stock.circuitLimit / 100);
 
     let finalPrice = newPrice;
-    if (priceChange > maxChange) finalPrice = stock.currentPrice * maxChange;
-    if (priceChange < minChange) finalPrice = stock.currentPrice * minChange;
+    if (priceChange > maxChange) finalPrice = oldPrice * maxChange;
+    if (priceChange < minChange) finalPrice = oldPrice * minChange;
 
     const timestamp = new Date();
 
@@ -38,6 +40,7 @@ export async function calculateNewPrice(stock) {
     await Stock.findByIdAndUpdate(stock._id, {
         $set: {
             currentPrice: finalPrice,
+            previousPrice: oldPrice,
             lastUpdated: timestamp
         }
     });
@@ -47,6 +50,7 @@ export async function calculateNewPrice(stock) {
         symbol: stock.symbol,
         price: finalPrice,
         netOrderQuantity: Q,
+        previousPrice: oldPrice,
         timestamp // Add timestamp for candlestick timestamps
     };
 }
@@ -54,6 +58,7 @@ export async function calculateNewPrice(stock) {
 export async function updateAllStockPrices() {
     const stocks = await Stock.find({});
     const updates = [];
+    console.log(`Calculating new price of stocks`);
 
     for (const stock of stocks) {
         try {

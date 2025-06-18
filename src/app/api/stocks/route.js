@@ -11,6 +11,7 @@ export async function GET() {
             name: 1,
             sector: 1,
             currentPrice: 1,
+            previousPrice: 1,
             riskLevel: 1
         });
 
