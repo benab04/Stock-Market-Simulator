@@ -4,6 +4,10 @@ import Order from '@/models/Order';
 import Stock from '@/models/Stock';
 import User from '@/models/User';
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const runtime = 'nodejs'
+
 export const POST = withAuth(async (req) => {
     try {
         await dbConnect();

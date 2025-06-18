@@ -1,6 +1,10 @@
 import dbConnect from '@/lib/db';
 import Stock from '@/models/Stock';
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const runtime = 'nodejs'
+
 export async function GET(request) {
     try {
         await dbConnect();

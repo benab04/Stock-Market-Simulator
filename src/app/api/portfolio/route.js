@@ -4,6 +4,9 @@ import dbConnect from '@/lib/db';
 import User from '@/models/User';
 import Stock from '@/models/Stock';
 
+export const revalidate = 0
+export const runtime = 'nodejs'
+
 export async function GET() {
     try {
         const session = await getServerSession(authOptions);

@@ -2,6 +2,10 @@ import { withAuth } from '@/lib/auth';
 import dbConnect from '@/lib/db';
 import User from '@/models/User';
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const runtime = 'nodejs'
+
 export const GET = withAuth(async (req) => {
     try {
         await dbConnect();
