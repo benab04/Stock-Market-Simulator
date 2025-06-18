@@ -71,15 +71,11 @@ const stockSchema = new mongoose.Schema({
     }
 });
 
-// Add indexes for faster queries
-stockSchema.index({ symbol: 1 });
+// Add compound indexes for faster queries on historical data
 stockSchema.index({ symbol: 1, "priceHistory.timestamp": -1 });
 stockSchema.index({ symbol: 1, "candles_5min.startTime": -1 });
 stockSchema.index({ symbol: 1, "candles_30min.startTime": -1 });
 stockSchema.index({ symbol: 1, "candles_2hour.startTime": -1 });
-
-// Add index for faster queries
-stockSchema.index({ symbol: 1 });
 
 const Stock = mongoose.models.Stock || mongoose.model('Stock', stockSchema);
 

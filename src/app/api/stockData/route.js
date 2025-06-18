@@ -1,6 +1,10 @@
 import dbConnect from '@/lib/db';
 import marketWorker from '@/workers/marketWorker';
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const runtime = 'nodejs'
+
 export async function GET() {
     await dbConnect();
 
