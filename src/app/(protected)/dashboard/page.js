@@ -499,6 +499,7 @@ export default function Dashboard() {
             .attr('width', '100%')
             .attr('height', height + margin.top + margin.bottom + volumeHeight)
             .attr('viewBox', `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom + volumeHeight}`)
+            .style('cursor', 'move')  // ADD THIS LINE
             .append('g')
             .attr('transform', `translate(${margin.left},${margin.top})`);
 
@@ -627,6 +628,8 @@ export default function Dashboard() {
             .attr('height', d => Math.max(Math.abs(yScale(d.open) - yScale(d.close)), 1))
             .attr('fill', d => d.close >= d.open ? '#22c55e' : '#ef4444');
 
+
+
         // Add volume bars
         const volumeGroup = chartGroup.append('g')
             .attr('class', 'volume-group')
@@ -698,16 +701,17 @@ export default function Dashboard() {
             });
 
         // Apply zoom behavior to a transparent overlay
-        const overlay = svg.append('rect')
-            .attr('class', 'zoom-overlay')
-            .attr('width', width)
-            .attr('height', height)
-            .attr('fill', 'transparent')
-            .attr('cursor', 'move')
-            .call(zoom);
+        // const overlay = svg.append('rect')
+        //     .attr('class', 'zoom-overlay')
+        //     .attr('width', width)
+        //     .attr('height', height)
+        //     .attr('fill', 'transparent')
+        //     .attr('cursor', 'move')
+        //     .call(zoom);
 
-        // CRITICAL FIX: Reset zoom to identity transform
-        overlay.call(zoom.transform, d3.zoomIdentity);
+        // // CRITICAL FIX: Reset zoom to identity transform
+        // overlay.call(zoom.transform, d3.zoomIdentity);
+        svg.call(zoom);
 
         // Also reset the stored transform in scaleRef
         scaleRef.current.currentTransform = null;
@@ -730,10 +734,12 @@ export default function Dashboard() {
             .style('z-index', '100');
 
         // Add tooltip behavior
-        candlesticks.on('mouseover', (event, d) => {
-            const timeStr = new Date(d.startTime).toLocaleTimeString();
-            tooltip.style('display', 'block')
-                .html(`
+        candlesticks
+            .style('cursor', 'crosshair')
+            .on('mouseover', (event, d) => {
+                const timeStr = new Date(d.startTime).toLocaleTimeString();
+                tooltip.style('display', 'block')
+                    .html(`
             Time: ${timeStr}<br/>
             Open: ₹${d.open.toFixed(2)}<br/>
             High: ₹${d.high.toFixed(2)}<br/>
@@ -741,9 +747,9 @@ export default function Dashboard() {
             Close: ₹${d.close.toFixed(2)}<br/>
             Volume: ${d.volume.toLocaleString()}
         `)
-                .style('left', (event.pageX + 10) + 'px')
-                .style('top', (event.pageY - 10) + 'px');
-        })
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 10) + 'px');
+            })
             .on('mousemove', (event) => {
                 tooltip.style('left', (event.pageX + 10) + 'px')
                     .style('top', (event.pageY - 10) + 'px');
