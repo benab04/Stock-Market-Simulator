@@ -794,8 +794,8 @@ export default function Dashboard() {
             </div>
 
             {/* Sidebar */}
-            <div className={`${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:relative z-40 w-80 lg:w-72 xl:w-80 bg-gray-800/95 backdrop-blur-sm border-r border-gray-700/50 transition-transform duration-300 ease-in-out h-full lg:h-auto`}>
-                <div className="p-6 h-full overflow-y-auto">
+            <div className={`${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:relative z-40 w-80 lg:w-64 xl:w-72 bg-gray-800/95 backdrop-blur-sm border-r border-gray-700/50 transition-transform duration-300 ease-in-out h-full lg:h-auto`}>
+                <div className="p-4 h-full overflow-y-auto">
                     <div className="hidden lg:block mb-8">
                         <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent mb-2">
                             Portfolio
@@ -896,73 +896,82 @@ export default function Dashboard() {
                             <p className="text-gray-400">Real-time market analysis and trading</p>
                         </div>
 
-                        {/* Chart Section */}
-                        <div className="bg-gray-800/40 backdrop-blur-sm border border-gray-700/50 rounded-2xl shadow-2xl flex-1 flex flex-col min-h-0">
-                            <div className="p-4 lg:p-6 border-b border-gray-700/50">
-                                <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center space-y-4 lg:space-y-0">
-                                    <div className="flex flex-col lg:flex-row lg:items-center lg:space-x-6">
-                                        <h2 className="text-xl lg:text-2xl text-white font-semibold flex items-center">
-                                            {selectedStock ? (
-                                                <>
-                                                    <span className="bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-                                                        {selectedStock}
-                                                    </span>
-                                                    <span className="ml-3 text-sm lg:text-base text-gray-400">
-                                                        ₹{stocks.find(s => s.symbol === selectedStock)?.currentPrice?.toFixed(2) || '0.00'}
-                                                    </span>
-                                                </>
-                                            ) : (
-                                                <span className="text-gray-400">Select a Stock</span>
-                                            )}
-                                        </h2>
-                                        <div className="flex flex-wrap gap-2">
-                                            <div className="px-3 py-1 bg-gray-700/50 rounded-full text-xs text-gray-400 flex items-center">
-                                                <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
-                                                Live Updates
-                                            </div>
-                                            <div className="px-3 py-1 bg-blue-700/30 border border-blue-600/30 rounded-full text-xs text-blue-300">
-                                                Interactive Chart
+                        {/* Chart and Trade Form Section */}
+                        <div className="flex-1 flex flex-col xl:flex-row gap-6 lg:gap-8 min-h-0">
+                            {/* Chart Section */}
+                            <div className="flex-1 bg-gray-800/40 backdrop-blur-sm border border-gray-700/50 rounded-2xl shadow-2xl flex flex-col min-h-0">
+                                <div className="p-4 lg:p-6 border-b border-gray-700/50">
+                                    <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center space-y-4 lg:space-y-0">
+                                        <div className="flex flex-col lg:flex-row lg:items-center lg:space-x-6">
+                                            <h2 className="text-xl lg:text-2xl text-white font-semibold flex items-center">
+                                                {selectedStock ? (
+                                                    <>
+                                                        <span className="bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+                                                            {selectedStock}
+                                                        </span>
+                                                        <span className="ml-3 text-sm lg:text-base text-gray-400">
+                                                            ₹{stocks.find(s => s.symbol === selectedStock)?.currentPrice?.toFixed(2) || '0.00'}
+                                                        </span>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-gray-400">Select a Stock</span>
+                                                )}
+                                            </h2>
+                                            <div className="flex flex-wrap gap-2">
+                                                <div className="px-3 py-1 bg-gray-700/50 rounded-full text-xs text-gray-400 flex items-center">
+                                                    <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
+                                                    Live Updates
+                                                </div>
+                                                <div className="px-3 py-1 bg-blue-700/30 border border-blue-600/30 rounded-full text-xs text-blue-300">
+                                                    Interactive Chart
+                                                </div>
                                             </div>
                                         </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {timeFrameButtons}
+                                        </div>
                                     </div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {timeFrameButtons}
-                                    </div>
+                                </div>
+
+                                <div className="flex-1 p-4 lg:p-6 min-h-0">
+                                    {selectedStock ? (
+                                        <div className="h-full flex flex-col">
+                                            <div className="flex-1 min-h-0 relative">
+                                                <div className="absolute inset-0 bg-gradient-to-t from-gray-900/20 to-transparent rounded-xl"></div>
+                                                <div className="relative h-full overflow-hidden rounded-xl">
+                                                    <svg ref={svgRef} className="w-full h-full min-h-[400px] lg:min-h-[500px]" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col justify-center items-center h-full text-center">
+                                            <div className="mb-6">
+                                                <svg className="w-16 h-16 lg:w-20 lg:w-20 text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                                </svg>
+                                            </div>
+                                            <h3 className="text-xl lg:text-2xl font-semibold text-gray-400 mb-2">
+                                                Select a Stock
+                                            </h3>
+                                            <p className="text-gray-500 max-w-md">
+                                                Choose a stock from the sidebar to view its chart and start trading
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
-                            <div className="flex-1 p-4 lg:p-6 min-h-0">
-                                {selectedStock ? (
-                                    <div className="h-full flex flex-col space-y-6">
-                                        <div className="flex-1 min-h-0 relative">
-                                            <div className="absolute inset-0 bg-gradient-to-t from-gray-900/20 to-transparent rounded-xl"></div>
-                                            <div className="relative h-full overflow-hidden rounded-xl">
-                                                <svg ref={svgRef} className="w-full h-full min-h-[400px] lg:min-h-[500px]" />
-                                            </div>
-                                        </div>
-                                        <TradeForm
-                                            stock={stocks.find(s => s.symbol === selectedStock)}
-                                            onTrade={(data) => {
-                                                console.log('Trade executed:', data);
-                                            }}
-                                        />
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col justify-center items-center h-full text-center">
-                                        <div className="mb-6">
-                                            <svg className="w-16 h-16 lg:w-20 lg:w-20 text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                                            </svg>
-                                        </div>
-                                        <h3 className="text-xl lg:text-2xl font-semibold text-gray-400 mb-2">
-                                            Select a Stock
-                                        </h3>
-                                        <p className="text-gray-500 max-w-md">
-                                            Choose a stock from the sidebar to view its chart and start trading
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
+                            {/* Trade Form Section - Now on the right */}
+                            {selectedStock && (
+                                <div className="xl:w-70 xl:flex-shrink-0">
+                                    <TradeForm
+                                        stock={stocks.find(s => s.symbol === selectedStock)}
+                                        onTrade={(data) => {
+                                            console.log('Trade executed:', data);
+                                        }}
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
