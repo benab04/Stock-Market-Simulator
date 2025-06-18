@@ -242,25 +242,28 @@ export default function Dashboard() {
                     if (!isMounted) return;
 
                     const updates = JSON.parse(event.data);
-                    const stockUpdate = updates.find(u => u.symbol === selectedStock);
 
-                    if (stockUpdate) {
-                        // Update current prices in state
-                        setStocks(prevStocks => {
-                            return prevStocks.map(stock => {
-                                if (stock.symbol === stockUpdate.symbol) {
-                                    return {
-                                        ...stock,
-                                        currentPrice: stockUpdate.price,
-                                        previousPrice: stockUpdate.previousPrice
-                                    };
-                                }
-                                return stock;
-                            });
+                    // Update all stocks in state
+                    setStocks(prevStocks => {
+                        return prevStocks.map(stock => {
+                            const stockUpdate = updates.find(u => u.symbol === stock.symbol);
+                            if (stockUpdate) {
+                                return {
+                                    ...stock,
+                                    currentPrice: stockUpdate.price,
+                                    previousPrice: stockUpdate.previousPrice || stock.currentPrice, // Fallback to current if no previous
+                                    lastUpdated: Date.now()
+                                };
+                            }
+                            return stock;
                         });
+                    });
 
-                        // Fetch new historical data
+                    // Only update chart and price indicator for the currently selected stock
+                    const selectedStockUpdate = updates.find(u => u.symbol === selectedStock);
+                    if (selectedStockUpdate && selectedStock) {
                         try {
+                            // Fetch new historical data only for selected stock
                             const response = await fetch(`/api/stockHistory?symbol=${selectedStock}&timeframe=${selectedTimeFrame}`);
                             if (!response.ok) {
                                 throw new Error('Failed to fetch historical data');
@@ -268,27 +271,40 @@ export default function Dashboard() {
                             const historicalData = await response.json();
 
                             if (historicalData.candles?.length > 0 && isMounted) {
-                                // Use the new updateChartData function instead of full redraw
+                                // Update chart data for selected stock
                                 updateChartData(selectedStock, historicalData.candles);
 
-                                // Update price indicator
+                                // Update price indicator with a small delay
                                 setTimeout(() => {
-                                    updatePriceIndicator(stockUpdate.price);
+                                    updatePriceIndicator(selectedStockUpdate.price);
                                 }, 50);
                             }
                         } catch (error) {
-                            console.error('Error updating historical data:', error);
+                            console.error('Error updating historical data for selected stock:', error);
                             // Even if chart update fails, try to update price indicator
-                            updatePriceIndicator(stockUpdate.price);
+                            updatePriceIndicator(selectedStockUpdate.price);
                         }
                     }
+
+                    // Optional: Trigger any callbacks for stock list UI updates
+                    if (typeof onStockListUpdate === 'function') {
+                        onStockListUpdate(updates);
+                    }
                 };
+
                 eventSource.onerror = (error) => {
                     console.error('SSE error:', error);
                     if (eventSource.readyState === EventSource.CLOSED && isMounted) {
+                        console.log('SSE connection closed, attempting to reconnect...');
                         setTimeout(setupSSE, 5000); // Try to reconnect after 5 seconds
                     }
                 };
+
+                // Optional: Add connection opened handler
+                eventSource.onopen = () => {
+                    console.log('SSE connection established');
+                };
+
             } catch (error) {
                 console.error('Error setting up SSE:', error);
                 if (isMounted) {
@@ -297,13 +313,23 @@ export default function Dashboard() {
             }
         }
 
+        // Enhanced cleanup function
+        function cleanupSSE() {
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+        }
+
+        // Call this in your component's cleanup/unmount
         setupSSE();
 
         return () => {
             isMounted = false;
-            if (eventSource) {
-                eventSource.close();
-            }
+            // if (eventSource) {
+            //     eventSource.close();
+            // }
+            cleanupSSE();
         };
     }, [isLoading, selectedStock, selectedTimeFrame]);
 
@@ -817,7 +843,7 @@ export default function Dashboard() {
                                         setSelectedStock(stock.symbol);
                                         setMobileMenuOpen(false);
                                     }}
-                                    className={`w-full text-left p-4 rounded-xl transition-all duration-200 border backdrop-blur-sm group hover:scale-[1.02] ${isSelected
+                                    className={`w-full text-left p-3 rounded-xl transition-all duration-200 border backdrop-blur-sm group hover:scale-[1.02] ${isSelected
                                         ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-blue-500/50 shadow-lg shadow-blue-500/10'
                                         : 'bg-gray-700/30 border-gray-600/30 hover:bg-gray-700/50 hover:border-gray-600/50'
                                         }`}
