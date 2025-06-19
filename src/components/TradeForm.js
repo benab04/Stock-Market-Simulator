@@ -181,7 +181,7 @@ export default function TradeForm({ stock, onTrade }) {
                         {loading && activeButton === 'BUY' ? (
                             <div className="flex items-center justify-center">
                                 <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-2"></div>
-                                <span className="text-xs">Processing...</span>
+                                <span className="text-xs"></span>
                             </div>
                         ) : (
                             <>
@@ -199,7 +199,7 @@ export default function TradeForm({ stock, onTrade }) {
                         {loading && activeButton === 'SELL' ? (
                             <div className="flex items-center justify-center">
                                 <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-2"></div>
-                                <span className="text-xs">Processing...</span>
+                                <span className="text-xs"></span>
                             </div>
                         ) : (
                             <>
