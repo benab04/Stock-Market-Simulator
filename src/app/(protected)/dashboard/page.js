@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import TradeForm from '@/components/TradeForm';
+import { stockCache } from '@/lib/stockCache';
 
 export default function Dashboard() {
     const svgRef = useRef(null);
@@ -27,33 +28,8 @@ export default function Dashboard() {
     };
     const FIVE_HOURS_MS = 5 * 60 * 60 * 1000;
 
-    // Function to fetch data for a specific time range
-    const fetchDataForRange = async (symbol, timeframe, start, end) => {
-        try {
-            const response = await fetch(
-                `/api/stockHistory?symbol=${symbol}&timeframe=${timeframe}&start=${start.toISOString()}&end=${end.toISOString()}`
-            );
-            if (!response.ok) {
-                throw new Error('Failed to fetch historical data');
-            }
-            const data = await response.json();
-            return data.candles || [];
-        } catch (error) {
-            console.error('Error fetching range data:', error);
-            return [];
-        }
-    };
 
-    // Function to merge new data with existing data without duplicates
-    const mergeData = (existingData, newData) => {
-        const allData = [...existingData];
-        newData.forEach(newCandle => {
-            if (!allData.some(existing => existing.startTime === newCandle.startTime)) {
-                allData.push(newCandle);
-            }
-        });
-        return allData.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
-    };
+
 
     // Load stocks on mount
     useEffect(() => {
@@ -74,9 +50,7 @@ export default function Dashboard() {
         }
 
         loadStocks();
-    }, []);
-
-    // Load historical data when selected stock or timeframe changes
+    }, []);    // Load historical data when selected stock or timeframe changes
     useEffect(() => {
         async function loadHistoricalData() {
             if (!selectedStock) return;
@@ -90,6 +64,17 @@ export default function Dashboard() {
 
                 setViewRange({ start, end });
 
+                // Try to get data from cache first
+                const cachedData = stockCache.get(selectedStock, selectedTimeFrame);
+                if (cachedData) {
+                    console.log('📦 Using cached data for', selectedStock);
+                    dataRef.current[selectedStock] = cachedData;
+                    updateChart(selectedStock);
+                    setIsLoading(false);
+                    return;
+                }
+
+                console.log('🌐 Fetching from API for', selectedStock);
                 const response = await fetch(
                     `/api/stockHistory?symbol=${selectedStock}&timeframe=${selectedTimeFrame}&start=${start.toISOString()}&end=${end.toISOString()}`
                 );
@@ -105,10 +90,14 @@ export default function Dashboard() {
                     setError('No historical data available');
                     setIsLoading(false);
                     return;
-                }
+                }                // Store the candles data and cache it
+                const candles = historicalData.candles;
+                dataRef.current[selectedStock] = candles;
 
-                // Store the candles data
-                dataRef.current[selectedStock] = historicalData.candles;
+                // Cache the new data
+                if (candles && candles.length > 0) {
+                    stockCache.set(selectedStock, selectedTimeFrame, candles);
+                }
 
                 // Update the stocks list with current prices
                 setStocks(prevStocks => {
@@ -840,7 +829,6 @@ export default function Dashboard() {
                     <div className="space-y-3">
                         {stocks.map((stock) => {
                             const isSelected = selectedStock === stock.symbol;
-                            console.log(stock)
                             const priceChange = stock.currentPrice - (stock.previousPrice || 0);
                             const isPositive = priceChange >= 0;
 
