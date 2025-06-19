@@ -25,6 +25,7 @@ export default function Dashboard() {
         '30min': { hours: 12, candleWidth: 12 },
         '2hour': { hours: 48, candleWidth: 20 }
     };
+    const FIVE_HOURS_MS = 5 * 60 * 60 * 1000;
 
     // Function to fetch data for a specific time range
     const fetchDataForRange = async (symbol, timeframe, start, end) => {
@@ -511,6 +512,13 @@ export default function Dashboard() {
         };
 
         const data = dataRef.current[symbol];
+        if (!data || data.length === 0) return;
+
+        // Get the latest timestamp
+        const latestTime = d3.max(data, d => new Date(d.startTime));
+
+        // Set initial view to show last 3 hours
+        const initialStart = new Date(latestTime - FIVE_HOURS_MS);
 
         // Set up dimensions with better spacing for price labels
         const margin = { top: 30, right: 120, bottom: 120, left: 80 };
@@ -537,7 +545,7 @@ export default function Dashboard() {
 
         // Create scales
         const xScale = d3.scaleTime()
-            .domain(d3.extent(data, d => new Date(d.startTime)))
+            .domain([initialStart, latestTime])
             .range([0, width]);
 
         const yScale = d3.scaleLinear()
@@ -703,7 +711,7 @@ export default function Dashboard() {
 
         // Setup zoom/pan behavior
         const zoom = d3.zoom()
-            .scaleExtent([1, 10])
+            .scaleExtent([0.5, 10])
             .extent([[0, 0], [width, height]])
             .on('zoom', (event) => {
                 const transform = event.transform;
