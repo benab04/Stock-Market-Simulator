@@ -96,7 +96,12 @@ stockSchema.index({ symbol: 1, "candles_2hour.startTime": -1 });
 // Create the Stock model
 const Stock = mongoose.models.Stock || mongoose.model('Stock', stockSchema);
 
+if (process.env.MONGODB_URI) {
+    console.log('Using MONGODB_URI from environment variables');
+}
+
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/stocksimulator';
+const CLEAR_DATABASE = process.env.CLEAR_DATABASE || false;
 
 const stocks = [
     {
@@ -107,7 +112,7 @@ const stocks = [
         riskLevel: 'Low',
         description: 'Large-cap IT services leader, stable EPS, bluechip favorite.',
         circuitLimit: 5,
-        volatilityFactor: 5000, // Bluechip stock
+        volatilityFactor: 50,
         priceHistory: [],
         candles_5min: [],
         candles_30min: [],
@@ -121,7 +126,7 @@ const stocks = [
         riskLevel: 'Medium',
         description: 'Mid-cap technology solutions provider with growing market share.',
         circuitLimit: 7,
-        volatilityFactor: 3000, // Regular stock
+        volatilityFactor: 30,
         priceHistory: [],
         candles_5min: [],
         candles_30min: [],
@@ -135,7 +140,245 @@ const stocks = [
         riskLevel: 'High',
         description: 'Small-cap quantum computing startup with high growth potential.',
         circuitLimit: 10,
-        volatilityFactor: 1000, // Volatile small-cap
+        volatilityFactor: 100,
+        priceHistory: [],
+        candles_5min: [],
+        candles_30min: [],
+        candles_2hour: []
+    },
+    {
+        symbol: 'RELPOW',
+        name: 'Reliance Power Corp',
+        sector: 'Energy',
+        currentPrice: 2450,
+        riskLevel: 'Low',
+        description: 'Dominant energy conglomerate with diversified power generation portfolio.',
+        circuitLimit: 5,
+        volatilityFactor: 45,
+        priceHistory: [],
+        candles_5min: [],
+        candles_30min: [],
+        candles_2hour: []
+    },
+    {
+        symbol: 'MEDIPL',
+        name: 'MediPlus Healthcare',
+        sector: 'Healthcare',
+        currentPrice: 1200,
+        riskLevel: 'Medium',
+        description: 'Leading pharmaceutical company with strong R&D capabilities.',
+        circuitLimit: 6,
+        volatilityFactor: 35,
+        priceHistory: [],
+        candles_5min: [],
+        candles_30min: [],
+        candles_2hour: []
+    },
+    {
+        symbol: 'BANKOR',
+        name: 'Bankor Financial',
+        sector: 'Banking',
+        currentPrice: 3200,
+        riskLevel: 'Low',
+        description: 'Premier private sector bank with robust digital banking services.',
+        circuitLimit: 4,
+        volatilityFactor: 40,
+        priceHistory: [],
+        candles_5min: [],
+        candles_30min: [],
+        candles_2hour: []
+    },
+    {
+        symbol: 'SOLREN',
+        name: 'Solar Renaissance',
+        sector: 'Renewable Energy',
+        currentPrice: 680,
+        riskLevel: 'Medium',
+        description: 'Mid-cap solar energy company riding the green transition wave.',
+        circuitLimit: 8,
+        volatilityFactor: 60,
+        priceHistory: [],
+        candles_5min: [],
+        candles_30min: [],
+        candles_2hour: []
+    },
+    {
+        symbol: 'FOODCH',
+        name: 'FoodChain Industries',
+        sector: 'FMCG',
+        currentPrice: 1500,
+        riskLevel: 'Low',
+        description: 'Established FMCG giant with strong brand portfolio and distribution network.',
+        circuitLimit: 5,
+        volatilityFactor: 25,
+        priceHistory: [],
+        candles_5min: [],
+        candles_30min: [],
+        candles_2hour: []
+    },
+    {
+        symbol: 'AUTODR',
+        name: 'AutoDrive Motors',
+        sector: 'Automotive',
+        currentPrice: 950,
+        riskLevel: 'Medium',
+        description: 'Automotive manufacturer focusing on electric and autonomous vehicles.',
+        circuitLimit: 7,
+        volatilityFactor: 55,
+        priceHistory: [],
+        candles_5min: [],
+        candles_30min: [],
+        candles_2hour: []
+    },
+    {
+        symbol: 'STEELX',
+        name: 'SteelX Corporation',
+        sector: 'Steel & Metal',
+        currentPrice: 1850,
+        riskLevel: 'Medium',
+        description: 'Large-cap steel producer with integrated operations and export focus.',
+        circuitLimit: 6,
+        volatilityFactor: 70,
+        priceHistory: [],
+        candles_5min: [],
+        candles_30min: [],
+        candles_2hour: []
+    },
+    {
+        symbol: 'FINEXP',
+        name: 'FinExpress Services',
+        sector: 'Financial Services',
+        currentPrice: 420,
+        riskLevel: 'High',
+        description: 'Emerging fintech company offering digital lending and payment solutions.',
+        circuitLimit: 10,
+        volatilityFactor: 90,
+        priceHistory: [],
+        candles_5min: [],
+        candles_30min: [],
+        candles_2hour: []
+    },
+    {
+        symbol: 'TEXTIL',
+        name: 'Textile Masters Ltd',
+        sector: 'Textiles',
+        currentPrice: 340,
+        riskLevel: 'Medium',
+        description: 'Mid-cap textile manufacturer with strong export credentials.',
+        circuitLimit: 8,
+        volatilityFactor: 45,
+        priceHistory: [],
+        candles_5min: [],
+        candles_30min: [],
+        candles_2hour: []
+    },
+    {
+        symbol: 'PHARMO',
+        name: 'PharmaOmega Research',
+        sector: 'Pharmaceuticals',
+        currentPrice: 2100,
+        riskLevel: 'Low',
+        description: 'Blue-chip pharmaceutical company with global presence and patent portfolio.',
+        circuitLimit: 5,
+        volatilityFactor: 35,
+        priceHistory: [],
+        candles_5min: [],
+        candles_30min: [],
+        candles_2hour: []
+    },
+    {
+        symbol: 'BIOTER',
+        name: 'BioTerra Sciences',
+        sector: 'Biotechnology',
+        currentPrice: 180,
+        riskLevel: 'High',
+        description: 'Small-cap biotech firm developing breakthrough gene therapy treatments.',
+        circuitLimit: 12,
+        volatilityFactor: 120,
+        priceHistory: [],
+        candles_5min: [],
+        candles_30min: [],
+        candles_2hour: []
+    },
+    {
+        symbol: 'REALST',
+        name: 'RealEstate Titans',
+        sector: 'Real Estate',
+        currentPrice: 1320,
+        riskLevel: 'Medium',
+        description: 'Large real estate developer with premium residential and commercial projects.',
+        circuitLimit: 6,
+        volatilityFactor: 50,
+        priceHistory: [],
+        candles_5min: [],
+        candles_30min: [],
+        candles_2hour: []
+    },
+    {
+        symbol: 'RETAILX',
+        name: 'RetailX Supermart',
+        sector: 'Retail',
+        currentPrice: 780,
+        riskLevel: 'Medium',
+        description: 'Multi-format retail chain with strong omnichannel presence.',
+        circuitLimit: 7,
+        volatilityFactor: 40,
+        priceHistory: [],
+        candles_5min: [],
+        candles_30min: [],
+        candles_2hour: []
+    },
+    {
+        symbol: 'CEMCON',
+        name: 'Cement Consolidated',
+        sector: 'Cement',
+        currentPrice: 2800,
+        riskLevel: 'Low',
+        description: 'Market leading cement manufacturer with pan-India presence.',
+        circuitLimit: 4,
+        volatilityFactor: 30,
+        priceHistory: [],
+        candles_5min: [],
+        candles_30min: [],
+        candles_2hour: []
+    },
+    {
+        symbol: 'AGRITECH',
+        name: 'AgriTech Innovations',
+        sector: 'Agriculture',
+        currentPrice: 520,
+        riskLevel: 'High',
+        description: 'Agricultural technology startup focused on precision farming solutions.',
+        circuitLimit: 10,
+        volatilityFactor: 85,
+        priceHistory: [],
+        candles_5min: [],
+        candles_30min: [],
+        candles_2hour: []
+    },
+    {
+        symbol: 'LOGIST',
+        name: 'Logistics Pro',
+        sector: 'Logistics',
+        currentPrice: 890,
+        riskLevel: 'Medium',
+        description: 'Integrated logistics service provider with tech-enabled supply chain solutions.',
+        circuitLimit: 7,
+        volatilityFactor: 55,
+        priceHistory: [],
+        candles_5min: [],
+        candles_30min: [],
+        candles_2hour: []
+    },
+    {
+        symbol: 'MINPOW',
+        name: 'Mineral Power Corp',
+        sector: 'Mining',
+        currentPrice: 1650,
+        riskLevel: 'Medium',
+        description: 'Diversified mining company with coal, iron ore and precious metals operations.',
+        circuitLimit: 6,
+        volatilityFactor: 75,
         priceHistory: [],
         candles_5min: [],
         candles_30min: [],
@@ -149,60 +392,69 @@ async function seedDatabase() {
         await mongoose.connect(MONGODB_URI);
         console.log('Connected to MongoDB successfully');
 
-        // Clear existing stocks
-        console.log('Clearing existing stocks...');
-        await Stock.deleteMany({});
-        console.log('Cleared existing stocks');
+        if (CLEAR_DATABASE) {
+            // Clear entire database if flag is set to true
+            console.log('CLEAR_DATABASE is true - Clearing existing stocks...');
+            await Stock.deleteMany({});
+            console.log('Cleared existing stocks');
 
-        // Insert new stocks
-        console.log('Inserting new stocks...');
-        const result = await Stock.insertMany(stocks);
-        console.log(`Seeded ${result.length} stocks successfully`);
+            // Insert all stocks
+            console.log('Inserting all stocks...');
+            const result = await Stock.insertMany(stocks);
+            console.log(`Seeded ${result.length} stocks successfully`);
 
-        // Initialize price history for each stock
-        console.log('Initializing price history...');
-        const currentTime = new Date();
+            // Initialize price history for all stocks
+            await initializePriceHistoryForStocks(result);
+        } else {
+            // Check for existing stocks and only add new ones
+            console.log('CLEAR_DATABASE is false - Checking for existing stocks...');
 
-        for (const stock of result) {
-            // Add initial price history entry (matches priceHistorySchema)
-            const initialPriceHistory = {
-                timestamp: currentTime,
-                price: stock.currentPrice
-            };
+            // Get all existing stock symbols
+            const existingStocks = await Stock.find({}, { symbol: 1 });
+            const existingSymbols = existingStocks.map(stock => stock.symbol);
+            console.log(`Found ${existingSymbols.length} existing stocks:`, existingSymbols);
 
-            // Add initial candle for each timeframe
-            const initialCandle = {
-                startTime: currentTime,
-                endTime: new Date(currentTime.getTime() + 5 * 60 * 1000), // 5 minutes later
-                open: stock.currentPrice,
-                high: stock.currentPrice,
-                low: stock.currentPrice,
-                close: stock.currentPrice,
-                volume: 0
-            };
+            // Filter out stocks that already exist
+            const newStocks = stocks.filter(stock => !existingSymbols.includes(stock.symbol));
+            console.log(`Found ${newStocks.length} new stocks to add`);
 
-            await Stock.findByIdAndUpdate(stock._id, {
-                $push: {
-                    priceHistory: initialPriceHistory,
-                    candles_5min: initialCandle,
-                    candles_30min: {
-                        ...initialCandle,
-                        endTime: new Date(currentTime.getTime() + 30 * 60 * 1000) // 30 minutes
-                    },
-                    candles_2hour: {
-                        ...initialCandle,
-                        endTime: new Date(currentTime.getTime() + 2 * 60 * 60 * 1000) // 2 hours
+            if (newStocks.length > 0) {
+                // Insert only new stocks
+                console.log('Inserting new stocks...');
+                const result = await Stock.insertMany(newStocks);
+                console.log(`Seeded ${result.length} new stocks successfully`);
+
+                // Initialize price history only for new stocks
+                await initializePriceHistoryForStocks(result);
+            } else {
+                console.log('No new stocks to add - all stocks already exist in database');
+            }
+
+            // Optionally update existing stocks (uncomment if you want to update existing stock data)
+            /*
+            if (existingSymbols.length > 0) {
+                console.log('Updating existing stocks...');
+                for (const stock of stocks) {
+                    if (existingSymbols.includes(stock.symbol)) {
+                        await Stock.findOneAndUpdate(
+                            { symbol: stock.symbol },
+                            {
+                                name: stock.name,
+                                sector: stock.sector,
+                                currentPrice: stock.currentPrice,
+                                riskLevel: stock.riskLevel,
+                                description: stock.description,
+                                circuitLimit: stock.circuitLimit,
+                                volatilityFactor: stock.volatilityFactor,
+                                lastUpdated: new Date()
+                            }
+                        );
                     }
-                },
-                $set: {
-                    lastCandle_5min: currentTime,
-                    lastCandle_30min: currentTime,
-                    lastCandle_2hour: currentTime,
-                    lastUpdated: currentTime
                 }
-            });
+                console.log('Updated existing stocks');
+            }
+            */
         }
-        console.log('Initialized price history and candles for all stocks');
 
         await mongoose.disconnect();
         console.log('Database seeding completed successfully');
@@ -214,5 +466,51 @@ async function seedDatabase() {
     }
 }
 
+// Helper function to initialize price history and candles for stocks
+async function initializePriceHistoryForStocks(stocksToInitialize) {
+    console.log('Initializing price history...');
+    const currentTime = new Date();
+
+    for (const stock of stocksToInitialize) {
+        // Add initial price history entry (matches priceHistorySchema)
+        const initialPriceHistory = {
+            timestamp: currentTime,
+            price: stock.currentPrice
+        };
+
+        // Add initial candle for each timeframe
+        const initialCandle = {
+            startTime: currentTime,
+            endTime: new Date(currentTime.getTime() + 5 * 60 * 1000), // 5 minutes later
+            open: stock.currentPrice,
+            high: stock.currentPrice,
+            low: stock.currentPrice,
+            close: stock.currentPrice,
+            volume: 0
+        };
+
+        await Stock.findByIdAndUpdate(stock._id, {
+            $push: {
+                priceHistory: initialPriceHistory,
+                candles_5min: initialCandle,
+                candles_30min: {
+                    ...initialCandle,
+                    endTime: new Date(currentTime.getTime() + 30 * 60 * 1000) // 30 minutes
+                },
+                candles_2hour: {
+                    ...initialCandle,
+                    endTime: new Date(currentTime.getTime() + 2 * 60 * 60 * 1000) // 2 hours
+                }
+            },
+            $set: {
+                lastCandle_5min: currentTime,
+                lastCandle_30min: currentTime,
+                lastCandle_2hour: currentTime,
+                lastUpdated: currentTime
+            }
+        });
+    }
+    console.log(`Initialized price history and candles for ${stocksToInitialize.length} stocks`);
+}
 // Run the seeding function
 seedDatabase();
