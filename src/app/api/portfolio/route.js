@@ -50,7 +50,8 @@ export async function GET() {
 
         const holdings = user.portfolio.map(holding => {
             const currentPrice = stockPriceMap.get(holding.stockSymbol);
-            const investedValue = holding.buyPrice ? holding.quantity * holding.buyPrice : holding.quantity * holding.averagePrice;
+            // const investedValue = holding.buyPrice ? holding.quantity * holding.buyPrice : holding.quantity * holding.averagePrice;
+            const investedValue = holding.quantity * holding.buyPrice;
             const currentValue = holding.quantity * currentPrice;
 
             totalInvested += investedValue;
@@ -60,6 +61,7 @@ export async function GET() {
                 symbol: holding.stockSymbol,
                 quantity: holding.quantity,
                 averagePrice: holding.averagePrice,
+                buyPrice: holding.buyPrice,
                 currentPrice: currentPrice,
                 investedValue: investedValue,
                 currentValue: currentValue,
