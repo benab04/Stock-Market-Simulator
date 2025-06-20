@@ -73,26 +73,29 @@ class MarketWorker {
             console.log('Triggering market cycle from external cron job');
             this.isCycleActive = true;
 
-            // Immediately calculate and update prices
-            const firstUpdate = await this.performUpdate();
+            // Record the cycle start time
+            const cycleStartTime = Date.now();
 
-            // Schedule the second update 30 seconds later
+            // Schedule the second update exactly 30 seconds from cycle start
             this.cycleTimeout = setTimeout(async () => {
                 if (this.isCycleActive) {
                     await this.performUpdate();
                 }
             }, 30000);
 
-            // Stop the cycle after 55 seconds
+            // Stop the cycle after 55 seconds from cycle start
             setTimeout(() => {
                 this.stopCycle();
                 console.log('Market cycle completed - stopping after 55 seconds');
             }, 55000);
 
+            // Start the first update (this can take variable time)
+            const firstUpdate = await this.performUpdate();
+
             return {
                 message: 'Market cycle started',
                 firstUpdate: firstUpdate,
-                cycleStartTime: new Date().toISOString()
+                cycleStartTime: new Date(cycleStartTime).toISOString()
             };
 
         } catch (error) {
