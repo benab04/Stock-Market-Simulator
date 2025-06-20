@@ -52,4 +52,39 @@ export async function GET() {
             'Connection': 'keep-alive',
         },
     });
-} 
+}
+
+// New API endpoint to trigger market updates from external cron job
+export async function POST() {
+    try {
+        await dbConnect();
+
+        // Trigger the market worker cycle
+        const result = await marketWorker.triggerCycle();
+        const status = marketWorker.getCycleStatus();
+
+        return new Response(JSON.stringify({
+            success: true,
+            message: 'Market cycle triggered successfully',
+            mode: status.mode,
+            continuousMode: status.continuousMode,
+            data: result
+        }), {
+            status: 200,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+    } catch (error) {
+        console.error('Error triggering market cycle:', error);
+        return new Response(JSON.stringify({
+            success: false,
+            error: error.message
+        }), {
+            status: 500,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+    }
+}
