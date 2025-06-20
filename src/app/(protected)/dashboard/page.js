@@ -286,7 +286,7 @@ export default function Dashboard() {
                     console.error('SSE error:', error);
                     if (eventSource.readyState === EventSource.CLOSED && isMounted) {
                         console.log('SSE connection closed, attempting to reconnect...');
-                        setTimeout(setupSSE, 5000); // Try to reconnect after 5 seconds
+                        setTimeout(setupSSE, 1000); // Try to reconnect after 1 second
                     }
                 };
 
