@@ -85,7 +85,8 @@ export const POST = withAuth(async (req) => {
                 user.portfolio.push({
                     stockSymbol,
                     quantity,
-                    averagePrice: stock.currentPrice
+                    averagePrice: stock.currentPrice,
+                    buyPrice: stock.currentPrice
                 });
             } else {
                 const currentHolding = user.portfolio[portfolioIndex];
@@ -93,6 +94,7 @@ export const POST = withAuth(async (req) => {
                 const totalCost = (currentHolding.quantity * currentHolding.averagePrice) + orderCost;
                 user.portfolio[portfolioIndex].quantity = totalShares;
                 user.portfolio[portfolioIndex].averagePrice = totalCost / totalShares;
+                user.portfolio[portfolioIndex].buyPrice = stock.currentPrice;
             }
         } else {
             // Add balance
