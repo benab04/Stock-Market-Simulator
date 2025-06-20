@@ -62,7 +62,7 @@ class MarketWorker {
         }
     }
 
-    // New method to trigger a 45-second cycle from external cron job
+    // New method to trigger a 55-second cycle from external cron job
     async triggerCycle() {
         try {
             if (this.isCycleActive) {
@@ -83,11 +83,11 @@ class MarketWorker {
                 }
             }, 30000);
 
-            // Stop the cycle after 45 seconds from cycle start
+            // Stop the cycle after 55 seconds from cycle start
             setTimeout(() => {
                 this.stopCycle();
-                console.log('Market cycle completed - stopping after 45 seconds');
-            }, 45000);
+                console.log('Market cycle completed - stopping after 55 seconds');
+            }, 55000);
 
             // Start the first update (this can take variable time)
             const firstUpdate = await this.performUpdate();
