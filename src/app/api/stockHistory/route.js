@@ -13,9 +13,10 @@ export async function GET(request) {
         const timeframe = searchParams.get('timeframe') || '5min';
         const start = searchParams.get('start');
         const end = searchParams.get('end');
-        console.log("Stock", symbol)
-        console.log("Start", start)
-        console.log("End", end)
+        console.log("Fetching historical data for stock:", symbol, "Timeframe:", timeframe, "Start:", start, "End:", end);
+        // console.log("Stock", symbol)
+        // console.log("Start", start)
+        // console.log("End", end)
         if (!symbol) {
             return Response.json(
                 { error: 'Symbol parameter is required' },
