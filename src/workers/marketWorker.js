@@ -15,6 +15,28 @@ class MarketWorker {
         this.continuousMode = process.env.CONTINUOUS_ENGINE === 'true';
     }
 
+    // Calculate next UTC-aligned timestamp
+    getNextUTCAlignedTime() {
+        const now = Date.now();
+        const intervalMs = this.updateInterval;
+
+        // Get seconds since epoch
+        const secondsSinceEpoch = Math.floor(now / 1000);
+        const intervalSeconds = intervalMs / 1000;
+
+        // Find the next aligned interval
+        const nextAlignedSeconds = Math.ceil(secondsSinceEpoch / intervalSeconds) * intervalSeconds;
+
+        return nextAlignedSeconds * 1000;
+    }
+
+    // Calculate delay until next UTC-aligned time
+    getDelayToNextUTCInterval() {
+        const now = Date.now();
+        const nextAlignedTime = this.getNextUTCAlignedTime();
+        return nextAlignedTime - now;
+    }
+
     async start() {
         if (this.isRunning) return;
 
@@ -24,13 +46,16 @@ class MarketWorker {
 
             // Only start continuous updates if CONTINUOUS_ENGINE is true
             if (this.continuousMode) {
-                console.log('Starting market worker in continuous mode');
-                // Align updates to fixed time intervals
-                const now = Date.now();
-                const nextInterval = Math.ceil(now / this.updateInterval) * this.updateInterval;
-                const delay = nextInterval - now;
+                console.log('Starting market worker in continuous mode with UTC alignment');
 
-                // Wait until the next aligned interval
+                // Calculate delay to next UTC-aligned interval
+                const delay = this.getDelayToNextUTCInterval();
+                const nextUpdateTime = new Date(Date.now() + delay);
+
+                console.log(`Next update scheduled for UTC: ${nextUpdateTime.toISOString()}`);
+                console.log(`Delay until next update: ${delay}ms`);
+
+                // Wait until the next UTC-aligned interval
                 this.scheduleNextUpdate(delay);
             } else {
                 console.log('Market worker started in cron-trigger mode (continuous updates disabled)');
@@ -108,11 +133,14 @@ class MarketWorker {
     // Extract the update logic into a separate method
     async performUpdate() {
         try {
+            const updateStartTime = Date.now();
+            const updateStartUTC = new Date(updateStartTime).toISOString();
+
             await dbConnect();
 
             // Update prices
             const updates = await updateAllStockPrices();
-            this.lastUpdateTime = Date.now();
+            this.lastUpdateTime = updateStartTime;
             this.lastUpdateData = updates;
 
             // Update candlesticks for each stock
@@ -121,7 +149,7 @@ class MarketWorker {
                     await updateCandlesticks(
                         update._id,
                         update.price,
-                        update.timestamp || new Date()
+                        update.timestamp || new Date(updateStartTime)
                     );
                 } catch (error) {
                     console.error(`Error updating candlesticks for stock ${update.symbol}:`, error);
@@ -131,7 +159,8 @@ class MarketWorker {
             // Notify all listeners with the full updates including candlestick data
             this.notifyListeners(updates);
 
-            console.log(`Market update completed at ${new Date().toISOString()}, ${updates.length} stocks updated`);
+            const updateDuration = Date.now() - updateStartTime;
+            console.log(`Market update completed at UTC: ${updateStartUTC}, ${updates.length} stocks updated, took ${updateDuration}ms`);
             return updates;
 
         } catch (error) {
@@ -166,17 +195,20 @@ class MarketWorker {
         try {
             await this.performUpdate();
 
-            // Schedule next update at the next fixed interval
-            const now = Date.now();
-            const nextInterval = Math.ceil(now / this.updateInterval) * this.updateInterval;
-            const delay = nextInterval - now;
+            // Calculate delay to next UTC-aligned interval
+            const delay = this.getDelayToNextUTCInterval();
+            const nextUpdateTime = new Date(Date.now() + delay);
+
+            console.log(`Next update scheduled for UTC: ${nextUpdateTime.toISOString()}, delay: ${delay}ms`);
 
             this.scheduleNextUpdate(delay);
         } catch (error) {
             console.error('Error in market worker update loop:', error);
             if (this.isRunning && this.continuousMode) {
-                // If there was an error, try again after 5 seconds
-                this.scheduleNextUpdate(5000);
+                // If there was an error, calculate delay to next UTC interval
+                const delay = this.getDelayToNextUTCInterval();
+                console.log(`Error recovery: scheduling next attempt in ${delay}ms`);
+                this.scheduleNextUpdate(delay);
             }
         }
     }
@@ -198,12 +230,34 @@ class MarketWorker {
 
     // Method to get cycle status
     getCycleStatus() {
+        const nextUpdateTime = this.continuousMode ?
+            new Date(this.getNextUTCAlignedTime()).toISOString() : null;
+
         return {
             isActive: this.isCycleActive,
             lastUpdateTime: this.lastUpdateTime,
+            lastUpdateTimeUTC: this.lastUpdateTime ? new Date(this.lastUpdateTime).toISOString() : null,
+            nextUpdateTimeUTC: nextUpdateTime,
             isRunning: this.isRunning,
             continuousMode: this.continuousMode,
-            mode: this.continuousMode ? 'continuous' : 'cron-triggered'
+            mode: this.continuousMode ? 'continuous' : 'cron-triggered',
+            updateInterval: this.updateInterval
+        };
+    }
+
+    // Helper method to get debug info about UTC alignment
+    getUTCAlignmentInfo() {
+        const now = Date.now();
+        const nowUTC = new Date(now).toISOString();
+        const nextAlignedTime = this.getNextUTCAlignedTime();
+        const nextAlignedUTC = new Date(nextAlignedTime).toISOString();
+        const delay = nextAlignedTime - now;
+
+        return {
+            currentTimeUTC: nowUTC,
+            nextAlignedTimeUTC: nextAlignedUTC,
+            delayMs: delay,
+            intervalSeconds: this.updateInterval / 1000
         };
     }
 }
