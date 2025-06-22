@@ -8,7 +8,7 @@ class MarketWorker {
         this.lastUpdateTime = null;
         this.lastUpdateData = null;
         this.listeners = new Set();
-        this.updateInterval = 2000; // 2 seconds
+        this.updateInterval = 30000; // 30 seconds
         this.retryTimeout = null;
         this.cycleTimeout = null;
         this.isCycleActive = false;
