@@ -56,7 +56,7 @@ export async function calculateNewPrice(stock, ordersMap = null) {
     const maxChange = 1 + (stock.circuitLimit / 100);
     const minChange = 1 - (stock.circuitLimit / 100);
 
-    let finalPrice = newPrice;
+    let finalPrice = newPrice.toFixed(2);
     if (priceChange > maxChange) finalPrice = oldPrice * maxChange;
     if (priceChange < minChange) finalPrice = oldPrice * minChange;
 
