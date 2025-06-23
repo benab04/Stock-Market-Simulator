@@ -162,7 +162,7 @@ export default function TradeForm({ stock, onTrade }) {
                 <div className="mb-4 bg-gray-800/30 rounded-lg p-3 border border-gray-700/30">
                     <div className="flex justify-between items-center mb-3">
                         <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Your Holdings</span>
-                        <span className="text-xs text-blue-400 font-medium">{holdings.quantity} shares</span>
+                        <span className="text-xs text-blue-400 font-medium  font-semibold">{holdings.quantity} shares</span>
                     </div>
 
                     {/* <div className="grid grid-cols-2 gap-3 mb-3">
