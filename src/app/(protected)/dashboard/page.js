@@ -23,8 +23,8 @@ export default function Dashboard() {
 
     // Constants for time windows
     const TIME_WINDOWS = {
-        '5min': { hours: 2, candleWidth: 5 },
-        '30min': { hours: 12, candleWidth: 12 },
+        '5min': { hours: 48, candleWidth: 5 },
+        '30min': { hours: 48, candleWidth: 12 },
         '2hour': { hours: 48, candleWidth: 20 }
     };
     const FIVE_HOURS_MS = 5 * 60 * 60 * 1000;
@@ -117,7 +117,7 @@ export default function Dashboard() {
                 setTimeout(() => {
                     updateChart(selectedStock);
                     setIsLoading(false);
-                }, 100);
+                }, 300);
 
             } catch (error) {
                 console.error('Error loading historical data:', error);
