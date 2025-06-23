@@ -979,7 +979,7 @@ export default function Dashboard() {
 
         // Setup zoom/pan behavior
         const zoom = d3.zoom()
-            .scaleExtent([isMobile ? 3 : 0.5, 10])
+            .scaleExtent([isMobile ? 2 : 0.5, 10])
             .extent([[0, 0], [width, height]])
             .on('zoom', (event) => {
 

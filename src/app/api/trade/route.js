@@ -86,15 +86,18 @@ export const POST = withAuth(async (req) => {
                     stockSymbol,
                     quantity,
                     averagePrice: stock.currentPrice,
-                    buyPrice: stock.currentPrice
+                    buyPrice: stock.currentPrice,
+                    investedValue: orderCost,
                 });
             } else {
                 const currentHolding = user.portfolio[portfolioIndex];
                 const totalShares = currentHolding.quantity + quantity;
                 const totalCost = (currentHolding.quantity * currentHolding.averagePrice) + orderCost;
                 user.portfolio[portfolioIndex].quantity = totalShares;
+                user.portfolio[portfolioIndex].investedValue = currentHolding.investedValue ? currentHolding.investedValue + orderCost : totalCost;
                 user.portfolio[portfolioIndex].averagePrice = totalCost / totalShares;
                 user.portfolio[portfolioIndex].buyPrice = stock.currentPrice;
+
             }
         } else {
             // Add balance
@@ -107,6 +110,7 @@ export const POST = withAuth(async (req) => {
                 user.portfolio.splice(portfolioIndex, 1);
             } else {
                 user.portfolio[portfolioIndex].quantity -= quantity;
+                user.portfolio[portfolioIndex].investedValue -= currentHolding.investedValue ? orderCost : currentHolding.averagePrice * user.portfolio[portfolioIndex].quantity;
             }
         }
 

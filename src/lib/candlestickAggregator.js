@@ -2,9 +2,13 @@ import Stock from '../models/Stock.js';
 
 // Lightning-fast candlestick updates - minimal database operations
 export async function updateCandlesticksBatch(stockUpdates) {
-    if (!stockUpdates || stockUpdates.length === 0) return [];
+    if (!stockUpdates || stockUpdates.length === 0) {
+        console.log('No stock updates to process');
+        return [];
+    }
 
     const startTime = Date.now();
+    console.log(`Starting candle aggregation - ${stockUpdates.length} stock updates found`);
 
     try {
         // Create ultra-minimal bulk operations - just price and timestamp
@@ -23,7 +27,7 @@ export async function updateCandlesticksBatch(stockUpdates) {
                         $push: {
                             priceHistory: {
                                 $each: [{ timestamp, price }],
-                                $slice: -2000 // Keep only last 2000 points
+                                $slice: -10000 // Keep only last 10000 points
                             }
                         }
                     }
@@ -32,98 +36,100 @@ export async function updateCandlesticksBatch(stockUpdates) {
         });
 
         // Execute with maximum performance settings
+        console.log(`Updating price history for ${bulkOps.length} stocks`);
         await Stock.bulkWrite(bulkOps, {
             ordered: false,
             bypassDocumentValidation: true,
             writeConcern: { w: 1, j: false } // Fastest write concern
         });
 
+        // Now update only the current candles for each timeframe
+        const candleStats = await updateCurrentCandles(stockUpdates);
+
         const duration = Date.now() - startTime;
-        console.log(`Lightning candlestick update: ${bulkOps.length} stocks in ${duration}ms`);
+        console.log(`Completed candle aggregation - Updated/created ${candleStats.totalCandles} candles across ${candleStats.timeframes} timeframes in ${duration}ms`);
         return stockUpdates;
 
     } catch (error) {
-        console.error('Lightning candlestick update failed:', error);
-
-        // Ultra-simple fallback - just update prices
-        try {
-            const fallbackOps = stockUpdates.map(update => ({
-                updateOne: {
-                    filter: { _id: update._id || update.stockId },
-                    update: { $set: { currentPrice: update.price || update.currentPrice } }
-                }
-            }));
-
-            await Stock.bulkWrite(fallbackOps, {
-                ordered: false,
-                writeConcern: { w: 1, j: false }
-            });
-
-            console.log('Fallback price-only update completed');
-        } catch (fallbackError) {
-            console.error('Fallback failed:', fallbackError);
-        }
-
+        const duration = Date.now() - startTime;
+        console.error(`Candle aggregation failed after ${duration}ms:`, error.message);
         throw error;
     }
 }
 
-// Backward compatibility
-export async function updateCandlesticks(stockId, price, timestamp = new Date()) {
-    return updateCandlesticksBatch([{ _id: stockId, price, timestamp }]);
-}
-
-// Background candle generation (run separately, not blocking main updates)
-export async function generateCandlesBackground() {
-    try {
-        const stocks = await Stock.find({}, {
-            priceHistory: { $slice: -500 },
-            symbol: 1
-        }).lean();
-
-        console.log(`Background candle generation for ${stocks.length} stocks started`);
-
-        // Process in chunks to avoid memory issues
-        const chunkSize = 10;
-        for (let i = 0; i < stocks.length; i += chunkSize) {
-            const chunk = stocks.slice(i, i + chunkSize);
-            await processChunkCandles(chunk);
-        }
-
-        console.log('Background candle generation completed');
-
-    } catch (error) {
-        console.error('Background candle generation failed:', error);
-    }
-}
-
-async function processChunkCandles(stockChunk) {
+// Efficiently update only the current candle for each timeframe
+async function updateCurrentCandles(stockUpdates) {
+    const now = new Date();
     const bulkOps = [];
+    let candleCount = 0;
 
-    for (const stock of stockChunk) {
-        if (!stock.priceHistory || stock.priceHistory.length < 2) continue;
+    console.log('Processing candle updates for 3 timeframes (5min, 30min, 2hour)');
 
-        try {
-            // Generate candles from recent price history
-            const candles5min = generateCandlesFromHistory(stock.priceHistory, 5);
-            const candles30min = generateCandlesFromHistory(stock.priceHistory, 30);
-            const candles2hour = generateCandlesFromHistory(stock.priceHistory, 120);
+    for (const update of stockUpdates) {
+        const price = update.price || update.currentPrice;
+        const stockId = update._id || update.stockId;
+
+        // Calculate current timeframe boundaries (UTC aligned)
+        const timeframes = [
+            { field: 'candles_5min', minutes: 5 },
+            { field: 'candles_30min', minutes: 30 },
+            { field: 'candles_2hour', minutes: 120 }
+        ];
+
+        for (const tf of timeframes) {
+            const { candleStart, candleEnd } = getCandleBoundaries(now, tf.minutes);
 
             bulkOps.push({
                 updateOne: {
-                    filter: { _id: stock._id },
+                    filter: {
+                        _id: stockId,
+                        [`${tf.field}.startTime`]: { $ne: candleStart }
+                    },
                     update: {
-                        $set: {
-                            candles_5min: candles5min,
-                            candles_30min: candles30min,
-                            candles_2hour: candles2hour
+                        $push: {
+                            [tf.field]: {
+                                $each: [{
+                                    startTime: candleStart,
+                                    endTime: candleEnd,
+                                    open: price,
+                                    high: price,
+                                    low: price,
+                                    close: price,
+                                    volume: 1
+                                }],
+                                $slice: -2000 // Keep last 2000 candles
+                            }
                         }
                     }
                 }
             });
 
-        } catch (error) {
-            console.error(`Error generating candles for ${stock.symbol}:`, error);
+            // Update existing candle in current timeframe
+            bulkOps.push({
+                updateOne: {
+                    filter: {
+                        _id: stockId,
+                        [`${tf.field}.startTime`]: candleStart
+                    },
+                    update: {
+                        $set: {
+                            [`${tf.field}.$.close`]: price,
+                            [`${tf.field}.$.endTime`]: candleEnd
+                        },
+                        $max: {
+                            [`${tf.field}.$.high`]: price
+                        },
+                        $min: {
+                            [`${tf.field}.$.low`]: price
+                        },
+                        $inc: {
+                            [`${tf.field}.$.volume`]: 1
+                        }
+                    }
+                }
+            });
+
+            candleCount += 2; // Each stock gets 2 operations per timeframe (create/update)
         }
     }
 
@@ -133,63 +139,172 @@ async function processChunkCandles(stockChunk) {
             writeConcern: { w: 1, j: false }
         });
     }
+
+    return {
+        totalCandles: candleCount,
+        timeframes: 3
+    };
 }
 
-function generateCandlesFromHistory(priceHistory, intervalMinutes) {
-    if (!priceHistory || priceHistory.length === 0) return [];
-
-    const candles = [];
+// Get UTC-aligned candle boundaries
+function getCandleBoundaries(timestamp, intervalMinutes) {
+    const ms = timestamp.getTime();
     const intervalMs = intervalMinutes * 60 * 1000;
 
-    // Group prices by time intervals
-    const groups = {};
+    // Align to UTC intervals
+    const candleStartMs = Math.floor(ms / intervalMs) * intervalMs;
+    const candleEndMs = candleStartMs + intervalMs;
 
-    for (const point of priceHistory) {
-        const timestamp = point.timestamp.getTime();
-        const intervalStart = Math.floor(timestamp / intervalMs) * intervalMs;
+    return {
+        candleStart: new Date(candleStartMs),
+        candleEnd: new Date(candleEndMs)
+    };
+}
 
-        if (!groups[intervalStart]) {
-            groups[intervalStart] = [];
-        }
-        groups[intervalStart].push(point);
-    }
+// Alternative approach: Update candles in real-time with each price update
+export async function updateCandlesRealTime(stockId, price, timestamp = new Date()) {
+    const startTime = Date.now();
 
-    // Create candles from groups
-    for (const [intervalStart, points] of Object.entries(groups)) {
-        if (points.length === 0) continue;
+    const timeframes = [
+        { field: 'candles_5min', minutes: 5 },
+        { field: 'candles_30min', minutes: 30 },
+        { field: 'candles_2hour', minutes: 120 }
+    ];
 
-        const prices = points.map(p => p.price);
-        const startTime = new Date(parseInt(intervalStart));
-        const endTime = new Date(parseInt(intervalStart) + intervalMs);
+    const bulkOps = [];
 
-        candles.push({
-            startTime,
-            endTime,
-            open: prices[0],
-            high: Math.max(...prices),
-            low: Math.min(...prices),
-            close: prices[prices.length - 1],
-            volume: prices.length
+    for (const tf of timeframes) {
+        const { candleStart, candleEnd } = getCandleBoundaries(timestamp, tf.minutes);
+
+        // Try to update existing candle first
+        bulkOps.push({
+            updateOne: {
+                filter: {
+                    _id: stockId,
+                    [tf.field]: {
+                        $elemMatch: {
+                            startTime: candleStart
+                        }
+                    }
+                },
+                update: {
+                    $set: {
+                        [`${tf.field}.$.close`]: price,
+                        [`${tf.field}.$.endTime`]: candleEnd
+                    },
+                    $max: {
+                        [`${tf.field}.$.high`]: price
+                    },
+                    $min: {
+                        [`${tf.field}.$.low`]: price
+                    },
+                    $inc: {
+                        [`${tf.field}.$.volume`]: 1
+                    }
+                }
+            }
         });
     }
 
-    // Sort by time and keep only recent candles
-    return candles
-        .sort((a, b) => a.startTime - b.startTime)
-        .slice(-500); // Keep last 500 candles
+    // Execute updates first
+    await Stock.bulkWrite(bulkOps, {
+        ordered: false,
+        writeConcern: { w: 1, j: false }
+    });
+
+    // Check if we need to create new candles
+    const stock = await Stock.findById(stockId, {
+        'candles_5min': { $slice: -1 },
+        'candles_30min': { $slice: -1 },
+        'candles_2hour': { $slice: -1 }
+    });
+
+    const newCandleOps = [];
+    let newCandlesCreated = 0;
+
+    for (const tf of timeframes) {
+        const { candleStart, candleEnd } = getCandleBoundaries(timestamp, tf.minutes);
+        const lastCandle = stock[tf.field]?.[0];
+
+        // Create new candle if it doesn't exist or is from different timeframe
+        if (!lastCandle || lastCandle.startTime.getTime() !== candleStart.getTime()) {
+            newCandleOps.push({
+                updateOne: {
+                    filter: { _id: stockId },
+                    update: {
+                        $push: {
+                            [tf.field]: {
+                                $each: [{
+                                    startTime: candleStart,
+                                    endTime: candleEnd,
+                                    open: price,
+                                    high: price,
+                                    low: price,
+                                    close: price,
+                                    volume: 1
+                                }],
+                                $slice: -2000 // Keep last 2000 candles
+                            }
+                        }
+                    }
+                }
+            });
+            newCandlesCreated++;
+        }
+    }
+
+    if (newCandleOps.length > 0) {
+        await Stock.bulkWrite(newCandleOps, {
+            ordered: false,
+            writeConcern: { w: 1, j: false }
+        });
+    }
+
+    const duration = Date.now() - startTime;
+    if (newCandlesCreated > 0)
+        console.log(`Completed real-time candle update - ${newCandlesCreated} new candles created in ${duration}ms`);
 }
 
-// Fast read functions (optimized for display)
-export async function getCandlesForTimeframe(symbol, timeframe, limit = 500) {
+// Backward compatibility
+export async function updateCandlesticks(stockId, price, timestamp = new Date()) {
+    const startTime = Date.now();
+
+    // Update price history and current price
+    await Stock.updateOne(
+        { _id: stockId },
+        {
+            $set: {
+                currentPrice: price,
+                lastUpdate: timestamp
+            },
+            $push: {
+                priceHistory: {
+                    $each: [{ timestamp, price }],
+                    $slice: -10000
+                }
+            }
+        }
+    );
+
+    // Update candles in real-time
+    await updateCandlesRealTime(stockId, price, timestamp);
+
+    const duration = Date.now() - startTime;
+}
+
+// Fast read functions (optimized for display) - unchanged
+export async function getCandlesForTimeframe(symbol, timeframe, limit = 2000) {
     try {
+        console.log(`Fetching ${timeframe} candles for ${symbol} (limit: ${limit})`);
+
         if (timeframe === '1min') {
-            // For 1-minute, use price history directly
             const stock = await Stock.findOne({ symbol }, {
                 priceHistory: { $slice: -limit }
             }).lean();
 
             if (!stock) throw new Error('Stock not found');
 
+            console.log(`Retrieved ${stock.priceHistory?.length || 0} price points for 1min timeframe`);
             return stock.priceHistory.map(p => ({
                 startTime: p.timestamp,
                 endTime: new Date(p.timestamp.getTime() + 60000),
@@ -201,7 +316,6 @@ export async function getCandlesForTimeframe(symbol, timeframe, limit = 500) {
             }));
         }
 
-        // For other timeframes, get from candles collection
         const fieldMap = {
             '5min': 'candles_5min',
             '30min': 'candles_30min',
@@ -217,41 +331,50 @@ export async function getCandlesForTimeframe(symbol, timeframe, limit = 500) {
 
         if (!stock) throw new Error('Stock not found');
 
-        return (stock[field] || []).reverse();
+        const candles = (stock[field] || []).reverse();
+        console.log(`Retrieved ${candles.length} candles for ${timeframe} timeframe`);
+        return candles;
 
     } catch (error) {
-        console.error('Error fetching candles:', error);
+        console.error(`Error fetching ${timeframe} candles for ${symbol}:`, error.message);
         throw error;
     }
 }
 
 export async function getCurrentCandle(symbol, timeframe) {
     try {
+        const fieldMap = {
+            '5min': 'candles_5min',
+            '30min': 'candles_30min',
+            '2hour': 'candles_2hour'
+        };
+
+        const field = fieldMap[timeframe];
+        if (!field) throw new Error('Invalid timeframe');
+
         const stock = await Stock.findOne({ symbol }, {
-            priceHistory: { $slice: -10 },
+            [field]: { $slice: -1 },
             currentPrice: 1
         }).lean();
 
         if (!stock) throw new Error('Stock not found');
 
-        const now = new Date();
-        const recentPrice = stock.priceHistory[stock.priceHistory.length - 1];
+        const currentCandle = stock[field]?.[0];
+        if (!currentCandle) {
+            console.log(`No current candle found for ${symbol} ${timeframe}`);
+            return null;
+        }
 
-        if (!recentPrice) return null;
-
+        // Update with current price for real-time display
         return {
-            startTime: now,
-            endTime: new Date(now.getTime() + 60000),
-            open: recentPrice.price,
-            high: recentPrice.price,
-            low: recentPrice.price,
-            close: recentPrice.price,
-            currentPrice: stock.currentPrice,
-            volume: 1
+            ...currentCandle,
+            close: stock.currentPrice || currentCandle.close,
+            high: Math.max(currentCandle.high, stock.currentPrice || 0),
+            currentPrice: stock.currentPrice
         };
 
     } catch (error) {
-        console.error('Error getting current candle:', error);
+        console.error(`Error getting current ${timeframe} candle for ${symbol}:`, error.message);
         throw error;
     }
 }

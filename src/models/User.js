@@ -5,7 +5,9 @@ const portfolioSchema = new mongoose.Schema({
     stockSymbol: { type: String, required: true },
     quantity: { type: Number, required: true },
     averagePrice: { type: Number, required: true },
-    buyPrice: { type: Number, required: true }
+    buyPrice: { type: Number, required: true },
+    investedValue: { type: Number, default: 0, required: true }
+
 });
 
 const userSchema = new mongoose.Schema({

@@ -51,7 +51,7 @@ export async function GET() {
         const holdings = user.portfolio.map(holding => {
             const currentPrice = stockPriceMap.get(holding.stockSymbol);
             // const investedValue = holding.buyPrice ? holding.quantity * holding.buyPrice : holding.quantity * holding.averagePrice;
-            const investedValue = holding.quantity * holding.buyPrice;
+            const investedValue = holding.investedValue ? holding.investedValue : holding.quantity * holding.buyPrice;
             const currentValue = holding.quantity * currentPrice;
 
             totalInvested += investedValue;
@@ -83,7 +83,7 @@ export async function GET() {
         // Calculate percentage allocation
         const holdingsWithAllocation = holdings.map(holding => ({
             ...holding,
-            portfolioPercentage: (holding.currentValue / portfolioSummary.portfolioValue) * 100
+            portfolioPercentage: holding.investedValue ? (holding.investedValue / portfolioSummary.totalInvested) * 100 : (holding.currentValue / portfolioSummary.portfolioValue) * 100
         }));
 
         // Sort holdings by current value (descending)

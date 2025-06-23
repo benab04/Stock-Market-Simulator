@@ -40,7 +40,7 @@ export async function GET(request, { params }) {
             return Response.json({ error: 'Stock not found' }, { status: 404 });
         }
 
-        const investedValue = holding.quantity * holding.buyPrice;
+        const investedValue = holding.investedValue ? holding.investedValue : holding.quantity * holding.buyPrice;
         const currentValue = holding.quantity * stock.currentPrice;
 
         const holdingDetails = {
