@@ -20,8 +20,6 @@ export default function Dashboard() {
         start: null,
         end: null
     });
-    const [isHeaderClicked, setIsHeaderClicked] = useState(false);
-    const [isScrolled, setIsScrolled] = useState(false);
 
     // Constants for time windows
     const TIME_WINDOWS = {
@@ -131,8 +129,97 @@ export default function Dashboard() {
         loadHistoricalData();
     }, [selectedStock, selectedTimeFrame]);
 
+    // useEffect(() => {
+    //     async function fetchViewRangeData() {
+    //         if (!selectedStock || !viewRange.start || !viewRange.end) return;
 
+    //         try {
+    //             const { start, end } = viewRange;
+    //             const startTime = start.getTime();
+    //             const endTime = end.getTime();
 
+    //             // Get existing data for this stock
+    //             const existingData = dataRef.current[selectedStock] || [];
+
+    //             // Check if we need data for this range
+    //             let needsData = false;
+
+    //             if (existingData.length === 0) {
+    //                 needsData = true;
+    //             } else {
+    //                 const existingTimes = existingData.map(d => new Date(d.startTime).getTime());
+    //                 const minExisting = Math.min(...existingTimes);
+    //                 const maxExisting = Math.max(...existingTimes);
+
+    //                 needsData = startTime < minExisting || endTime > maxExisting;
+    //             }
+
+    //             if (!needsData) {
+    //                 console.log('📊 Complete data already exists for view range');
+    //                 return;
+    //             }
+
+    //             // Check cache
+    //             const cachedData = stockCache.get(selectedStock, selectedTimeFrame);
+    //             if (cachedData && cachedData.length > 0) {
+    //                 const cachedTimes = cachedData.map(d => new Date(d.startTime).getTime());
+    //                 const minCached = Math.min(...cachedTimes);
+    //                 const maxCached = Math.max(...cachedTimes);
+
+    //                 if (startTime >= minCached && endTime <= maxCached) {
+    //                     console.log('📦 Cache covers the view range');
+    //                     return;
+    //                 }
+    //             }
+
+    //             console.log('🌐 Fetching additional data from API for', selectedStock);
+
+    //             const response = await fetch(
+    //                 `/api/stockHistory?symbol=${selectedStock}&timeframe=${selectedTimeFrame}&start=${start.toISOString()}&end=${end.toISOString()}`
+    //             );
+
+    //             if (!response.ok) {
+    //                 throw new Error('Failed to fetch view range data');
+    //             }
+
+    //             const rangeData = await response.json();
+
+    //             if (!rangeData.candles || rangeData.candles.length === 0) {
+    //                 console.warn('No candles data received for view range');
+    //                 return;
+    //             }
+
+    //             const newCandles = rangeData.candles;
+
+    //             // Merge with existing data without duplicates
+    //             const existingStartTimes = new Set(existingData.map(d => d.startTime));
+    //             const uniqueNewCandles = newCandles.filter(candle => !existingStartTimes.has(candle.startTime));
+
+    //             if (uniqueNewCandles.length === 0) {
+    //                 console.log('📊 No new unique candles to add');
+    //                 return;
+    //             }
+
+    //             // Merge and sort
+    //             const mergedData = [...existingData, ...uniqueNewCandles];
+    //             mergedData.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+
+    //             // Cache the complete merged data
+    //             stockCache.set(selectedStock, selectedTimeFrame, mergedData);
+
+    //             // Use updateChartData to update the chart while preserving zoom/pan
+    //             updateChartData(selectedStock, mergedData);
+
+    //             console.log(`📈 Added ${uniqueNewCandles.length} new candles to ${selectedStock}, total: ${mergedData.length}`);
+
+    //         } catch (error) {
+    //             console.error('Error fetching view range data:', error);
+    //         }
+    //     }
+
+    //     const timeoutId = setTimeout(fetchViewRangeData, 500);
+    //     return () => clearTimeout(timeoutId);
+    // }, [viewRange, selectedStock, selectedTimeFrame]);
 
     // Function to update price indicator in real-time
     const updatePriceIndicator = (currentPrice) => {
@@ -895,6 +982,7 @@ export default function Dashboard() {
             .scaleExtent([isMobile ? 3 : 0.5, 10])
             .extent([[0, 0], [width, height]])
             .on('zoom', (event) => {
+
                 const transform = event.transform;
                 const newXScale = transform.rescaleX(xScale);
 
@@ -919,7 +1007,19 @@ export default function Dashboard() {
                 // Store the current transform and scale for live updates
                 scaleRef.current.currentTransform = transform;
                 scaleRef.current.currentXScale = newXScale;
-            });
+            })
+        // .on('end', (event) => {
+        //     // Only update viewRange when zoom/pan ends
+        //     const transform = event.transform;
+        //     const newXScale = transform.rescaleX(xScale);
+        //     const visibleStart = newXScale.invert(0);
+        //     const visibleEnd = newXScale.invert(width);
+
+        //     setViewRange({
+        //         start: visibleStart,
+        //         end: visibleEnd
+        //     });
+        // });
 
         // Apply zoom behavior to a transparent overlay
         // const overlay = svg.append('rect')
