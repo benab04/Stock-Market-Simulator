@@ -23,7 +23,7 @@ export async function updateCandlesticksBatch(stockUpdates) {
                         $push: {
                             priceHistory: {
                                 $each: [{ timestamp, price }],
-                                $slice: -500 // Keep only last 500 points
+                                $slice: -2000 // Keep only last 2000 points
                             }
                         }
                     }
@@ -77,7 +77,7 @@ export async function updateCandlesticks(stockId, price, timestamp = new Date())
 export async function generateCandlesBackground() {
     try {
         const stocks = await Stock.find({}, {
-            priceHistory: { $slice: -100 },
+            priceHistory: { $slice: -500 },
             symbol: 1
         }).lean();
 
@@ -176,11 +176,11 @@ function generateCandlesFromHistory(priceHistory, intervalMinutes) {
     // Sort by time and keep only recent candles
     return candles
         .sort((a, b) => a.startTime - b.startTime)
-        .slice(-100); // Keep last 100 candles
+        .slice(-500); // Keep last 500 candles
 }
 
 // Fast read functions (optimized for display)
-export async function getCandlesForTimeframe(symbol, timeframe, limit = 100) {
+export async function getCandlesForTimeframe(symbol, timeframe, limit = 500) {
     try {
         if (timeframe === '1min') {
             // For 1-minute, use price history directly
