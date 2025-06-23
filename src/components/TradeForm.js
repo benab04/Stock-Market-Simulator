@@ -6,8 +6,37 @@ export default function TradeForm({ stock, onTrade }) {
     const [activeButton, setActiveButton] = useState(null);
     const [error, setError] = useState(null);
     const [successAlert, setSuccessAlert] = useState(null);
+    const [holdings, setHoldings] = useState(null);
+    const [holdingsLoading, setHoldingsLoading] = useState(true);
 
     const presetQuantities = [5, 10, 25, 50];
+
+    useEffect(() => {
+        if (stock) {
+            try {
+                const fetchStockHoldings = async () => {
+                    setHoldingsLoading(true);
+                    const response = await fetch(`/api/portfolio/${stock.symbol}`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Failed to fetch holdings');
+                    }
+                    setHoldings(data.holding);
+                }
+                fetchStockHoldings();
+            } catch (error) {
+                console.error('Error fetching stock holdings:', error);
+                setHoldings(null);
+            } finally {
+                setHoldingsLoading(false);
+            }
+        }
+    }, [stock]);
 
     useEffect(() => {
         if (successAlert) {
@@ -84,6 +113,24 @@ export default function TradeForm({ stock, onTrade }) {
 
     const totalValue = stock?.currentPrice ? (stock.currentPrice * quantity).toFixed(2) : '0.00';
 
+    // PnL Arrow Component
+    const PnLArrow = ({ pnl }) => {
+        const isPositive = pnl >= 0;
+        return (
+            <svg
+                className={`w-3 h-3 ${isPositive ? 'text-green-400' : 'text-red-400'}`}
+                fill="currentColor"
+                viewBox="0 0 20 20"
+            >
+                {isPositive ? (
+                    <path fillRule="evenodd" d="M3.293 9.707a1 1 0 010-1.414l6-6a1 1 0 011.414 0l6 6a1 1 0 01-1.414 1.414L10 4.414 4.707 9.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                ) : (
+                    <path fillRule="evenodd" d="M16.707 10.293a1 1 0 010 1.414l-6 6a1 1 0 01-1.414 0l-6-6a1 1 0 111.414-1.414L10 15.586l5.293-5.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                )}
+            </svg>
+        );
+    };
+
     return (
         <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-3 shadow-2xl h-full">
             <div className="flex items-center justify-between mb-4">
@@ -96,6 +143,77 @@ export default function TradeForm({ stock, onTrade }) {
                     Live
                 </div>
             </div>
+
+            {/* Holdings Section */}
+            {holdingsLoading ? (
+                <div className="mb-4 bg-gray-800/30 rounded-lg p-3 border border-gray-700/30">
+                    <div className="animate-pulse">
+                        <div className="flex justify-between items-center mb-2">
+                            <div className="h-3 bg-gray-700 rounded w-20"></div>
+                            <div className="h-3 bg-gray-700 rounded w-16"></div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="h-4 bg-gray-700 rounded"></div>
+                            <div className="h-4 bg-gray-700 rounded"></div>
+                        </div>
+                    </div>
+                </div>
+            ) : holdings ? (
+                <div className="mb-4 bg-gray-800/30 rounded-lg p-3 border border-gray-700/30">
+                    <div className="flex justify-between items-center mb-3">
+                        <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Your Holdings</span>
+                        <span className="text-xs text-blue-400 font-medium">{holdings.quantity} shares</span>
+                    </div>
+
+                    {/* <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div className="text-center">
+                            <div className="text-xs text-gray-500 mb-1">Invested</div>
+                            <div className="text-sm font-medium text-white">₹{holdings.investedValue.toLocaleString()}</div>
+                        </div>
+                        <div className="text-center">
+                            <div className="text-xs text-gray-500 mb-1">Current Value</div>
+                            <div className="text-sm font-medium text-white">₹{holdings.currentValue.toLocaleString()}</div>
+                        </div>
+                    </div> */}
+
+                    <div className="bg-gray-900/40 rounded-lg p-2 border border-gray-700/20">
+                        <div className="flex justify-between items-center">
+                            <span className="text-xs text-gray-400">P&L</span>
+                            <div className={`flex items-center space-x-1 ${holdings.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                <PnLArrow pnl={holdings.pnl} />
+                                <span className="text-sm font-semibold">
+                                    ₹{Math.abs(holdings.pnl).toFixed(2)}
+                                </span>
+                                <span className="text-xs">
+                                    ({Math.abs(holdings.pnlPercentage).toFixed(2)}%)
+                                </span>
+                            </div>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-xs text-gray-400"></span>
+                            <div className={`flex items-center space-x-1 ${holdings.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                <span className="text-xs">
+                                    ₹{holdings.currentValue.toLocaleString()}
+                                </span>
+                                {/* <span className="text-xs">
+                                    ({Math.abs(holdings.pnlPercentage).toFixed(2)}%)
+                                </span> */}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                <div className="mb-4 bg-gray-800/20 rounded-lg p-3 border border-gray-700/20">
+                    <div className="flex items-center justify-center">
+                        <div className="text-center">
+                            <svg className="w-8 h-8 text-gray-600 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                            </svg>
+                            <p className="text-xs text-gray-500">No holdings found</p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Success Alert */}
             {successAlert && (
