@@ -23,8 +23,12 @@ export const POST = withAuth(async (req) => {
             );
         }
 
-        // Get stock details
-        const stock = await Stock.findOne({ symbol: stockSymbol });
+        // Parallel fetch of stock and user data
+        const [stock, user] = await Promise.all([
+            Stock.findOne({ symbol: stockSymbol }).lean(),
+            User.findById(userId)
+        ]);
+
         if (!stock) {
             return new Response(
                 JSON.stringify({ error: 'Stock not found' }),
@@ -32,8 +36,6 @@ export const POST = withAuth(async (req) => {
             );
         }
 
-        // Get user
-        const user = await User.findById(userId);
         if (!user) {
             return new Response(
                 JSON.stringify({ error: 'User not found' }),
@@ -45,7 +47,6 @@ export const POST = withAuth(async (req) => {
 
         // Validate trade
         if (type === 'BUY') {
-            // Check if user has enough balance
             if (user.balance < orderCost) {
                 return new Response(
                     JSON.stringify({ error: 'Insufficient balance' }),
@@ -53,7 +54,6 @@ export const POST = withAuth(async (req) => {
                 );
             }
         } else if (type === 'SELL') {
-            // Check if user owns enough shares
             const portfolio = user.portfolio.find(p => p.stockSymbol === stockSymbol);
             if (!portfolio || portfolio.quantity < quantity) {
                 return new Response(
@@ -63,8 +63,8 @@ export const POST = withAuth(async (req) => {
             }
         }
 
-        // Create order
-        const order = await Order.create({
+        // Create order and update user in parallel
+        const orderPromise = Order.create({
             stockId: stock._id,
             userId,
             type,
@@ -74,12 +74,10 @@ export const POST = withAuth(async (req) => {
             timestamp: new Date()
         });
 
-        // Update user's balance and portfolio
+        // Update user portfolio and balance
         if (type === 'BUY') {
-            // Deduct balance
             user.balance -= orderCost;
 
-            // Update portfolio
             const portfolioIndex = user.portfolio.findIndex(p => p.stockSymbol === stockSymbol);
             if (portfolioIndex === -1) {
                 user.portfolio.push({
@@ -97,24 +95,25 @@ export const POST = withAuth(async (req) => {
                 user.portfolio[portfolioIndex].investedValue = currentHolding.investedValue ? currentHolding.investedValue + orderCost : totalCost;
                 user.portfolio[portfolioIndex].averagePrice = totalCost / totalShares;
                 user.portfolio[portfolioIndex].buyPrice = stock.currentPrice;
-
             }
         } else {
-            // Add balance
             user.balance += orderCost;
 
-            // Update portfolio
             const portfolioIndex = user.portfolio.findIndex(p => p.stockSymbol === stockSymbol);
             const currentHolding = user.portfolio[portfolioIndex];
             if (currentHolding.quantity === quantity) {
                 user.portfolio.splice(portfolioIndex, 1);
             } else {
                 user.portfolio[portfolioIndex].quantity -= quantity;
-                user.portfolio[portfolioIndex].investedValue -= currentHolding.investedValue ? orderCost : currentHolding.averagePrice * user.portfolio[portfolioIndex].quantity;
+                user.portfolio[portfolioIndex].investedValue -= currentHolding.investedValue ? orderCost : currentHolding.averagePrice * quantity;
             }
         }
 
-        await user.save();
+        // Execute both operations in parallel
+        const [order] = await Promise.all([
+            orderPromise,
+            user.save()
+        ]);
 
         return new Response(
             JSON.stringify({
