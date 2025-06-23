@@ -43,13 +43,22 @@ export const POST = withAuth(async (req) => {
             );
         }
 
+        if (user.status && user.status === 'INACTIVE') {
+            return new Response(
+                JSON.stringify({ error: 'You have been disqualified. Please contact admin.' }),
+                { status: 403 }
+            );
+        }
+
         const orderCost = stock.currentPrice * quantity;
 
         // Validate trade
         if (type === 'BUY') {
             if (user.balance < orderCost) {
+                user.status = 'INACTIVE';
+                await user.save();
                 return new Response(
-                    JSON.stringify({ error: 'Insufficient balance' }),
+                    JSON.stringify({ error: 'Insufficient balance. You have been disqualified. Please contact admin.' }),
                     { status: 400 }
                 );
             }

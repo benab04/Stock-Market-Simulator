@@ -8,6 +8,7 @@ export default function TradeForm({ stock, onTrade }) {
     const [successAlert, setSuccessAlert] = useState(null);
     const [holdings, setHoldings] = useState(null);
     const [holdingsLoading, setHoldingsLoading] = useState(true);
+    const [balance, setBalance] = useState(null);
 
     const presetQuantities = [5, 10, 25, 50];
 
@@ -28,7 +29,21 @@ export default function TradeForm({ stock, onTrade }) {
                     }
                     setHoldings(data.holding);
                 }
+                const fetchBalance = async () => {
+                    const response = await fetch('/api/user/balance', {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Failed to fetch balance');
+                    }
+                    setBalance(data.balance);
+                }
                 fetchStockHoldings();
+                fetchBalance();
             } catch (error) {
                 console.error('Error fetching stock holdings:', error);
                 setHoldings(null);
@@ -161,9 +176,13 @@ export default function TradeForm({ stock, onTrade }) {
             ) : holdings ? (
                 <div className="mb-4 bg-gray-800/30 rounded-lg p-3 border border-gray-700/30">
                     <div className="flex justify-between items-center mb-3">
-                        <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Your Holdings</span>
+                        <span className="text-xs font-medium text-gray-400 uppercase tracking-wide font-semibold">Holdings</span>
                         <span className="text-xs text-blue-400 font-medium  font-semibold">{holdings.quantity} shares</span>
                     </div>
+                    {balance && <div className="flex justify-between items-center mb-3">
+                        <span className="text-xs font-medium text-gray-400 uppercase tracking-wide font-semibold">Balance</span>
+                        <span className="text-xs text-blue-400 font-medium  font-semibold">₹ {balance.toFixed(2).toLocaleString()}</span>
+                    </div>}
 
                     {/* <div className="grid grid-cols-2 gap-3 mb-3">
                         <div className="text-center">
@@ -330,7 +349,7 @@ export default function TradeForm({ stock, onTrade }) {
 
                 {/* Error Message */}
                 {error && (
-                    <div className="bg-red-900/20 border border-red-700/50 rounded-lg p-3 text-red-400 text-sm">
+                    <div className="bg-red-900/20 border border-red-700/50 rounded-lg p-3 text-red-400 text-sm max-w-md overflow-hidden">
                         <div className="flex items-start">
                             <svg className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
