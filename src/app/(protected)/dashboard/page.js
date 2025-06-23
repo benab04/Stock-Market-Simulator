@@ -173,6 +173,9 @@ export default function Dashboard() {
             const priceLineY = yScale(currentPrice);
             const priceColor = currentPrice >= lastCandle.open ? '#22c55e' : '#ef4444';
 
+            // Check if mobile view
+            const isMobile = window.innerWidth < 768;
+
             // Draw price line
             svg.append('line')
                 .attr('class', 'current-price-line')
@@ -181,42 +184,67 @@ export default function Dashboard() {
                 .attr('y1', priceLineY)
                 .attr('y2', priceLineY)
                 .attr('stroke', priceColor)
-                .attr('stroke-width', 1)
-                .attr('stroke-dasharray', '2,2')
+                .attr('stroke-width', isMobile ? 1.5 : 1)
+                .attr('stroke-dasharray', isMobile ? '3,3' : '2,2')
                 .attr('opacity', 0.8);
 
-            // Add price label
+            // Add price label with mobile-responsive positioning
+            const labelOffset = isMobile ? 10 : 25;
             const priceLabel = svg.append('g')
                 .attr('class', 'price-label-group')
-                .attr('transform', `translate(${width + 25}, ${priceLineY})`);
+                .attr('transform', `translate(${width + labelOffset}, ${priceLineY})`);
 
             const labelText = `₹${currentPrice.toFixed(2)}`;
-            const padding = 8;
-            const textWidth = labelText.length * 8 + padding * 2;
+            const padding = isMobile ? 6 : 8;
+            const fontSize = isMobile ? 10 : 12;
+            const textWidth = labelText.length * (isMobile ? 6 : 8) + padding * 2;
+
+            // Adjust label positioning if it would go off-screen
+            const labelHeight = isMobile ? 20 : 24;
+            let adjustedY = 0;
+
+            // Check if label would be cut off at top or bottom
+            if (priceLineY < labelHeight / 2) {
+                adjustedY = labelHeight / 2 - priceLineY;
+            } else if (priceLineY > (scaleRef.current.height || 400) - labelHeight / 2) {
+                adjustedY = (scaleRef.current.height || 400) - labelHeight / 2 - priceLineY;
+            }
+
+            priceLabel.attr('transform', `translate(${width + labelOffset}, ${priceLineY + adjustedY})`);
 
             priceLabel.append('rect')
                 .attr('x', -padding)
-                .attr('y', -12)
+                .attr('y', -(labelHeight / 2))
                 .attr('width', textWidth)
-                .attr('height', 24)
+                .attr('height', labelHeight)
                 .attr('fill', priceColor)
-                .attr('rx', 4)
+                .attr('rx', isMobile ? 3 : 4)
                 .attr('opacity', 0.9);
 
             priceLabel.append('text')
                 .attr('fill', 'white')
-                .attr('font-size', '12px')
+                .attr('font-size', `${fontSize}px`)
                 .attr('font-weight', 'bold')
                 .attr('alignment-baseline', 'middle')
                 .attr('text-anchor', 'start')
                 .text(labelText);
+
+            // Add mobile-specific touch indicator (small dot at the price line start)
+            if (isMobile) {
+                svg.append('circle')
+                    .attr('class', 'current-price-line')
+                    .attr('cx', 0)
+                    .attr('cy', priceLineY)
+                    .attr('r', 3)
+                    .attr('fill', priceColor)
+                    .attr('opacity', 0.9);
+            }
 
             console.log('Price indicator updated successfully');
         } catch (error) {
             console.error('Error updating price indicator:', error);
         }
     };
-
     // Set up real-time updates
     useEffect(() => {
         if (isLoading || !selectedStock) return;
@@ -510,14 +538,24 @@ export default function Dashboard() {
         const initialStart = new Date(latestTime - FIVE_HOURS_MS);
 
         // Set up dimensions with better spacing for price labels
-        const margin = { top: 30, right: 120, bottom: 120, left: 80 };
-        const containerWidth = svgRef.current.clientWidth || 1200;
+        const isMobile = window.innerWidth < 768;
+        const isTablet = window.innerWidth < 1024;
+
+        const margin = {
+            top: 30,
+            right: isMobile ? 60 : 120, // Reduce right margin on mobile
+            bottom: isMobile ? 80 : 120, // Reduce bottom margin on mobile
+            left: isMobile ? 60 : 80 // Reduce left margin on mobile
+        };
+        const containerWidth = svgRef.current.clientWidth || (isMobile ? 350 : 1200);
         const width = containerWidth - margin.left - margin.right;
-        const height = 400;
-        const volumeHeight = 100;
+
+        const height = isMobile ? 300 : 400;
+        const volumeHeight = isMobile ? 60 : 100;
 
         // Use fixed candle width based on timeframe
-        const candleWidth = TIME_WINDOWS[selectedTimeFrame].candleWidth;
+        const baseCandleWidth = TIME_WINDOWS[selectedTimeFrame].candleWidth;
+        const candleWidth = isMobile ? Math.max(baseCandleWidth * 0.7, 3) : baseCandleWidth;
 
         const maxPrice = d3.max(data, d => d.high) * 1.001;
         const minPrice = d3.min(data, d => d.low) * 0.999;
@@ -529,6 +567,7 @@ export default function Dashboard() {
             .attr('height', height + margin.top + margin.bottom + volumeHeight)
             .attr('viewBox', `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom + volumeHeight}`)
             .style('cursor', 'move')  // ADD THIS LINE
+            .style('font-size', isMobile ? '10px' : '12px')
             .append('g')
             .attr('transform', `translate(${margin.left},${margin.top})`);
 
@@ -608,8 +647,10 @@ export default function Dashboard() {
 
         // Function to update grid
         const updateGrid = (currentXScale) => {
+            const tickCount = isMobile ? 4 : Math.min(12, Math.floor(width / 100));
+
             xGrid.call(d3.axisBottom(currentXScale)
-                .ticks(Math.min(12, Math.floor(width / 100)))
+                .ticks(tickCount)
                 .tickSize(-height)
                 .tickFormat('')
             )
@@ -619,7 +660,7 @@ export default function Dashboard() {
                     .attr('stroke-opacity', 0.1));
 
             yGrid.call(d3.axisLeft(yScale)
-                .ticks(8)
+                .ticks(isMobile ? 5 : 8)
                 .tickSize(-width)
                 .tickFormat('')
             )
@@ -685,22 +726,167 @@ export default function Dashboard() {
         const yAxis = svg.append('g')
             .attr('class', 'y-axis');
 
+
+
         // Function to update axes
+        // const updateAxes = (currentXScale) => {
+        //     const tickCount = isMobile ? 4 : Math.min(12, Math.floor(width / 100));
+
+        //     xAxis.call(d3.axisBottom(currentXScale)
+        //         .ticks(tickCount)
+        //         .tickFormat(isMobile ? d3.timeFormat('%H:%M') : d3.timeFormat('%d/%m %H:%M')));
+
+        //     yAxis.call(d3.axisLeft(yScale)
+        //         .ticks(isMobile ? 5 : 8)
+        //         .tickFormat(d => isMobile ? `₹${d.toFixed(0)}` : `₹${d.toFixed(2)}`));
+        // };
+
+
+        // // Initial axes setup
+        // updateAxes(xScale);
+
+
         const updateAxes = (currentXScale) => {
+            const tickCount = isMobile ? 4 : Math.min(12, Math.floor(width / 100));
+
+            // Get all tick values first to process them in order
+            const tickValues = currentXScale.ticks(tickCount);
+
+            // Create a fresh formatter for each update (important for zoom/pan)
+            const smartDateFormatter = (d, i) => {
+                const currentDate = d3.timeFormat('%d/%m')(d);
+                const currentTime = d3.timeFormat('%H:%M')(d);
+
+                // Check if this is the first tick or if date changed from previous
+                if (i === 0) {
+                    return `${currentDate}\n${currentTime}`;
+                }
+
+                // Compare with previous tick in the current tick array
+                const prevDate = d3.timeFormat('%d/%m')(tickValues[i - 1]);
+
+                if (currentDate !== prevDate) {
+                    return `${currentDate}\n${currentTime}`;
+                } else {
+                    return currentTime;
+                }
+            };
+
+            // Use tickValues with explicit formatting to ensure order
             xAxis.call(d3.axisBottom(currentXScale)
-                .ticks(Math.min(12, Math.floor(width / 100)))
-                .tickFormat(d3.timeFormat('%H:%M')));
+                .tickValues(tickValues)
+                .tickFormat(smartDateFormatter));
+
+            // Style the x-axis labels for better readability across all devices
+            xAxis.selectAll('text')
+                .style('font-size', isMobile ? '10px' : '12px')
+                .style('text-anchor', 'middle')
+                .each(function (d, i) {
+                    const text = d3.select(this);
+                    const textContent = text.text();
+
+                    // If text contains newline (date + time), split into two lines
+                    if (textContent.includes('\n')) {
+                        const lines = textContent.split('\n');
+                        text.text(''); // Clear original text
+
+                        text.append('tspan')
+                            .attr('x', 0)
+                            .attr('dy', '0.7em')
+                            .style('font-size', isMobile ? '10px' : '12px')
+                            .text(lines[1]);
+
+                        text.append('tspan')
+                            .attr('x', 0)
+                            .attr('dy', '1.6em')
+                            .style('font-weight', 'bold')
+                            .style('font-size', isMobile ? '9px' : '11px')
+                            .style('fill', '#666')
+                            .text(lines[0]);
+
+                    }
+                });
 
             yAxis.call(d3.axisLeft(yScale)
-                .tickFormat(d => `₹${d.toFixed(2)}`));
+                .ticks(isMobile ? 5 : 8)
+                .tickFormat(d => isMobile ? `₹${d.toFixed(0)}` : `₹${d.toFixed(2)}`));
         };
 
-        // Initial axes setup
+        // Fixed implementation that works with zoom/pan
+        const updateAxesFixed = (currentXScale) => {
+            const tickCount = isMobile ? 4 : Math.min(12, Math.floor(width / 100));
+
+            // Get all tick values first to process them in order
+            const tickValues = currentXScale.ticks(tickCount);
+
+            // Create a fresh formatter for each update (important for zoom/pan)
+            const smartDateFormatter = (d, i) => {
+                const currentDate = d3.timeFormat('%d/%m')(d);
+                const currentTime = d3.timeFormat('%H:%M')(d);
+
+                // Check if this is the first tick or if date changed from previous
+                if (i === 0) {
+                    return `${currentDate}\n${currentTime}`;
+                }
+
+                // Compare with previous tick in the current tick array
+                const prevDate = d3.timeFormat('%d/%m')(tickValues[i - 1]);
+
+                if (currentDate !== prevDate) {
+                    return `${currentDate}\n${currentTime}`;
+                } else {
+                    return currentTime;
+                }
+            };
+
+            // Use tickValues with explicit formatting to ensure order
+            xAxis.call(d3.axisBottom(currentXScale)
+                .tickValues(tickValues)
+                .tickFormat(smartDateFormatter));
+
+            // Style the x-axis labels for better readability across all devices
+            xAxis.selectAll('text')
+                .style('font-size', isMobile ? '10px' : '12px')
+                .style('text-anchor', 'middle')
+                .each(function (d, i) {
+                    const text = d3.select(this);
+                    const textContent = text.text();
+
+                    // If text contains newline (date + time), split into two lines
+                    if (textContent.includes('\n')) {
+                        const lines = textContent.split('\n');
+                        text.text(''); // Clear original text
+
+                        text.append('tspan')
+                            .attr('x', 0)
+                            .attr('dy', '0.7em')
+                            .style('font-size', isMobile ? '10px' : '12px')
+                            .text(lines[1]);
+
+                        text.append('tspan')
+                            .attr('x', 0)
+                            .attr('dy', '1.6em')
+                            .style('font-weight', 'bold')
+                            .style('font-size', isMobile ? '9px' : '11px')
+                            .style('fill', '#666')
+                            .text(lines[0]);
+
+
+
+                    }
+                });
+
+            yAxis.call(d3.axisLeft(yScale)
+                .ticks(isMobile ? 5 : 8)
+                .tickFormat(d => isMobile ? `₹${d.toFixed(0)}` : `₹${d.toFixed(2)}`));
+        };
+        // Use the main implementation
         updateAxes(xScale);
+
 
         // Setup zoom/pan behavior
         const zoom = d3.zoom()
-            .scaleExtent([0.5, 10])
+            .scaleExtent([isMobile ? 3 : 0.5, 10])
             .extent([[0, 0], [width, height]])
             .on('zoom', (event) => {
                 const transform = event.transform;
@@ -721,7 +907,7 @@ export default function Dashboard() {
                     .attr('x', d => newXScale(new Date(d.startTime)) - candleWidth / 2);
 
                 // Update axes and grid
-                updateAxes(newXScale);
+                updateAxesFixed(newXScale);
                 updateGrid(newXScale);
 
                 // Store the current transform and scale for live updates
@@ -889,7 +1075,7 @@ export default function Dashboard() {
             )}
 
             {/* Main content */}
-            <div className="flex-1 p-4 lg:p-8 overflow-hidden">
+            <div className="flex-1 p-2 lg:p-8 overflow-hidden">
                 {isLoading ? (
                     <div className="flex flex-col justify-center items-center h-[calc(100vh-8rem)] lg:h-screen">
                         <div className="relative">
@@ -909,7 +1095,7 @@ export default function Dashboard() {
                         </div>
                     </div>
                 ) : (
-                    <div className="space-y-6 lg:space-y-8 h-full">
+                    <div className="space-y-4 lg:space-y-8 h-full">
                         {/* Header */}
                         <div className="hidden lg:block">
                             <h1 className="text-3xl xl:text-4xl font-bold bg-gradient-to-r from-white via-blue-100 to-white bg-clip-text text-transparent mb-2">
@@ -919,10 +1105,10 @@ export default function Dashboard() {
                         </div>
 
                         {/* Chart and Trade Form Section */}
-                        <div className="flex-1 flex flex-col xl:flex-row gap-6 lg:gap-8 min-h-0">
+                        <div className="flex-1 flex flex-col xl:flex-row gap-4 lg:gap-8 min-h-0">
                             {/* Chart Section */}
                             <div className="flex-1 bg-gray-800/40 backdrop-blur-sm border border-gray-700/50 rounded-2xl shadow-2xl flex flex-col min-h-0">
-                                <div className="p-4 lg:p-6 border-b border-gray-700/50">
+                                <div className="p-3 lg:p-6 border-b border-gray-700/50">
                                     <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center space-y-4 lg:space-y-0">
                                         <div className="flex flex-col lg:flex-row lg:items-center lg:space-x-6">
                                             <h2 className="text-xl lg:text-2xl text-white font-semibold flex items-center">
@@ -955,13 +1141,20 @@ export default function Dashboard() {
                                     </div>
                                 </div>
 
-                                <div className="flex-1 p-4 lg:p-6 min-h-0">
+                                <div className="flex-1 p-2 sm:p-1 lg:p-6  min-h-0">
                                     {selectedStock ? (
                                         <div className="h-full flex flex-col">
                                             <div className="flex-1 min-h-0 relative">
                                                 <div className="absolute inset-0 bg-gradient-to-t from-gray-900/20 to-transparent rounded-xl"></div>
                                                 <div className="relative h-full overflow-hidden rounded-xl">
-                                                    <svg ref={svgRef} className="w-full h-full min-h-[400px] lg:min-h-[500px]" />
+                                                    <svg
+                                                        ref={svgRef}
+                                                        className="w-full h-full"
+                                                        style={{
+                                                            minHeight: window.innerWidth < 768 ? '350px' : window.innerWidth < 1024 ? '450px' : '500px',
+                                                            fontSize: window.innerWidth < 768 ? '10px' : '12px'
+                                                        }}
+                                                    />
                                                 </div>
                                             </div>
                                         </div>
@@ -969,7 +1162,7 @@ export default function Dashboard() {
                                         <div className="flex flex-col justify-center items-center h-full text-center">
                                             <div className="mb-6">
                                                 <svg className="w-16 h-16 lg:w-20 lg:w-20 text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                                                 </svg>
                                             </div>
                                             <h3 className="text-xl lg:text-2xl font-semibold text-gray-400 mb-2">
