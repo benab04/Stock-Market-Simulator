@@ -1,13 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 
 export default function Register() {
     const router = useRouter();
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+
+    const { data: session, status } = useSession();
+
+    useEffect(() => {
+        if (status === 'authenticated') {
+            router.push('/dashboard');
+        }
+    }, [status, router]);
+
+    if (status === 'authenticated') {
+        return null;
+    }
+
 
     async function handleSubmit(e) {
         e.preventDefault();

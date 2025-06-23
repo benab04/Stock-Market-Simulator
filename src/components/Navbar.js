@@ -21,7 +21,7 @@ export default function Navbar() {
                 <div className="flex items-center justify-between h-16">
                     {/* Logo and main nav */}
                     <div className="flex items-center">
-                        <Link href="/dashboard" className="text-white font-bold text-xl">
+                        <Link href="/" className="text-white font-bold text-xl">
                             GameOfTrades
                         </Link>
                         <div className="hidden md:block ml-10">
