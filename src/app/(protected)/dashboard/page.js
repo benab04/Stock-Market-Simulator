@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import TradeForm from '@/components/TradeForm';
+import MobileStocksList from '@/components/MobileStocksView';
 import { stockCache } from '@/lib/stockCache';
 
 export default function Dashboard() {
@@ -19,6 +20,8 @@ export default function Dashboard() {
         start: null,
         end: null
     });
+    const [isHeaderClicked, setIsHeaderClicked] = useState(false);
+    const [isScrolled, setIsScrolled] = useState(false);
 
     // Constants for time windows
     const TIME_WINDOWS = {
@@ -986,16 +989,44 @@ export default function Dashboard() {
             }, 100);
         }
     };
+
+
+    // useEffect(() => {
+    //     const handleScroll = () => {
+    //         const scrollY = window.scrollY;
+    //         setIsScrolled(scrollY > 0);
+
+    //         // Reset click state when scrolled back to top
+    //         if (scrollY === 0) {
+    //             setIsHeaderClicked(false);
+    //         }
+    //     };
+
+    //     window.addEventListener('scroll', handleScroll);
+    //     return () => window.removeEventListener('scroll', handleScroll);
+    // }, []);
+
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex flex-col lg:flex-row">
             {/* Mobile Header */}
-            <div className="lg:hidden bg-gray-800/90 backdrop-blur-sm border-b border-gray-700/50 p-4 sticky top-0 z-50">
+            {/* <div
+                className={`lg:hidden bg-gray-800/90 backdrop-blur-sm border-b border-gray-700/50 p-4 z-40  transition-all duration-300 ${isScrolled || isHeaderClicked
+                    ? 'fixed top-0 left-0 right-0'
+                    : 'fixed top-12 left-0 right-0'
+                    }`}
+            // onClick={() => setIsHeaderClicked(!isHeaderClicked)}
+            >
                 <div className="flex items-center justify-between">
                     <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
                         Stock Dashboard
                     </h1>
                     <button
-                        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                        onClick={(e) => {
+                            e.stopPropagation(); // Prevent triggering the header click
+                            setMobileMenuOpen(!mobileMenuOpen);
+                            setIsHeaderClicked(!isHeaderClicked);
+                        }}
                         className="lg:hidden p-2 rounded-lg bg-gray-700/50 text-gray-300 hover:text-white hover:bg-gray-600/50 transition-all duration-200"
                     >
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1003,7 +1034,7 @@ export default function Dashboard() {
                         </svg>
                     </button>
                 </div>
-            </div>
+            </div> */}
 
             {/* Sidebar */}
             <div className={`${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:relative z-40 w-80 lg:w-64 xl:w-72 bg-gray-800/95 backdrop-blur-sm border-r border-gray-700/50 transition-transform duration-300 ease-in-out h-full lg:h-screen flex flex-col`}>
@@ -1187,6 +1218,12 @@ export default function Dashboard() {
                                         onTrade={(data) => {
                                             console.log('Trade executed:', data);
                                         }}
+                                    />
+                                    {/* Mobile Stocks List - appears below TradeForm on mobile */}
+                                    <MobileStocksList
+                                        stocks={stocks}
+                                        selectedStock={selectedStock}
+                                        onStockSelect={setSelectedStock}
                                     />
                                 </div>
                             )}
