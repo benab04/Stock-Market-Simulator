@@ -6,6 +6,7 @@ import Stock from '@/models/Stock';
 
 export const revalidate = 0
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
     try {
@@ -16,44 +17,71 @@ export async function GET() {
 
         await dbConnect();
 
-        // Get user's portfolio and balance
-        const user = await User.findOne({ email: session.user.email });
-        if (!user) {
+        // Single aggregation query to get user with populated stock data
+        const [userResult] = await User.aggregate([
+            {
+                $match: { email: session.user.email }
+            },
+            {
+                $lookup: {
+                    from: 'stocks',
+                    localField: 'portfolio.stockSymbol',
+                    foreignField: 'symbol',
+                    as: 'stockData',
+                    pipeline: [
+                        {
+                            $project: {
+                                symbol: 1,
+                                currentPrice: 1
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                $project: {
+                    balance: 1,
+                    portfolio: 1,
+                    stockData: 1
+                }
+            }
+        ]);
+
+        if (!userResult) {
             return Response.json({ error: 'User not found' }, { status: 404 });
         }
 
         // Handle empty portfolio case
-        if (!user.portfolio || user.portfolio.length === 0) {
+        if (!userResult.portfolio || userResult.portfolio.length === 0) {
             return Response.json({
                 summary: {
                     totalInvested: 0,
                     totalCurrent: 0,
                     totalPnL: 0,
                     totalPnLPercentage: 0,
-                    availableBalance: user.balance,
-                    portfolioValue: user.balance
+                    availableBalance: userResult.balance,
+                    portfolioValue: userResult.balance
                 },
                 holdings: []
             });
         }
 
-        // Get current stock prices
-        const stockSymbols = user.portfolio.map(item => item.stockSymbol);
-        const stocks = await Stock.find({ symbol: { $in: stockSymbols } });
+        // Create stock price map for O(1) lookup
+        const stockPriceMap = new Map(
+            userResult.stockData.map(stock => [stock.symbol, stock.currentPrice])
+        );
 
-        // Create a map for quick stock price lookup
-        const stockPriceMap = new Map(stocks.map(stock => [stock.symbol, stock.currentPrice]));
-
-        // Calculate portfolio metrics
+        // Single pass calculation of all metrics
         let totalInvested = 0;
         let totalCurrent = 0;
 
-        const holdings = user.portfolio.map(holding => {
+        const holdings = userResult.portfolio.map(holding => {
             const currentPrice = stockPriceMap.get(holding.stockSymbol);
-            // const investedValue = holding.buyPrice ? holding.quantity * holding.buyPrice : holding.quantity * holding.averagePrice;
-            const investedValue = holding.investedValue ? holding.investedValue : holding.quantity * holding.buyPrice;
+            const investedValue = holding.investedValue || (holding.quantity * holding.buyPrice);
             const currentValue = holding.quantity * currentPrice;
+            const pnl = currentValue - investedValue;
 
+            // Accumulate totals
             totalInvested += investedValue;
             totalCurrent += currentValue;
 
@@ -62,32 +90,36 @@ export async function GET() {
                 quantity: holding.quantity,
                 averagePrice: holding.averagePrice,
                 buyPrice: holding.buyPrice,
-                currentPrice: currentPrice,
-                investedValue: investedValue,
-                currentValue: currentValue,
-                pnl: currentValue - investedValue,
-                pnlPercentage: ((currentValue - investedValue) / investedValue) * 100
+                currentPrice,
+                investedValue,
+                currentValue,
+                pnl,
+                pnlPercentage: (pnl / investedValue) * 100
             };
         });
 
-        // Calculate portfolio summary
+        // Calculate summary metrics
+        const totalPnL = totalCurrent - totalInvested;
+        const portfolioValue = totalCurrent + userResult.balance;
+
         const portfolioSummary = {
             totalInvested,
             totalCurrent,
-            totalPnL: totalCurrent - totalInvested,
-            totalPnLPercentage: totalInvested > 0 ? ((totalCurrent - totalInvested) / totalInvested) * 100 : 0,
-            availableBalance: user.balance,
-            portfolioValue: totalCurrent + user.balance
+            totalPnL,
+            totalPnLPercentage: totalInvested > 0 ? (totalPnL / totalInvested) * 100 : 0,
+            availableBalance: userResult.balance,
+            portfolioValue
         };
 
-        // Calculate percentage allocation
-        const holdingsWithAllocation = holdings.map(holding => ({
-            ...holding,
-            portfolioPercentage: holding.investedValue ? (holding.investedValue / portfolioSummary.totalInvested) * 100 : (holding.currentValue / portfolioSummary.portfolioValue) * 100
-        }));
-
-        // Sort holdings by current value (descending)
-        holdingsWithAllocation.sort((a, b) => b.currentValue - a.currentValue);
+        // Add portfolio allocation and sort in single pass
+        const holdingsWithAllocation = holdings
+            .map(holding => ({
+                ...holding,
+                portfolioPercentage: holding.investedValue
+                    ? (holding.investedValue / totalInvested) * 100
+                    : (holding.currentValue / portfolioValue) * 100
+            }))
+            .sort((a, b) => b.currentValue - a.currentValue);
 
         return Response.json({
             summary: portfolioSummary,
@@ -99,9 +131,3 @@ export async function GET() {
         return Response.json({ error: 'Internal server error' }, { status: 500 });
     }
 }
-
-
-
-
-
-export const dynamic = 'force-dynamic'
