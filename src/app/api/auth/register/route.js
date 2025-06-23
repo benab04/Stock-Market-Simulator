@@ -1,9 +1,13 @@
 import dbConnect from "@/lib/db";
 import User from "@/models/User";
+import dotenv from 'dotenv';
+dotenv.config();
 
 export async function POST(req) {
     try {
         await dbConnect();
+
+        const REGISTER_ALLOWED = process.env.REGISTER_ALLOWED || 'true';
 
         const body = await req.json();
         const { name, email, password } = body;
@@ -16,6 +20,15 @@ export async function POST(req) {
                 { status: 400, headers: { 'Content-Type': 'application/json' } }
             );
         }
+
+        if (REGISTER_ALLOWED.toLowerCase() !== 'true') {
+            return new Response(
+                JSON.stringify({ error: 'Registration is currently closed' }),
+                { status: 403, headers: { 'Content-Type': 'application/json' } }
+            );
+        }
+
+
 
         // Create new user
         const user = await User.create({
