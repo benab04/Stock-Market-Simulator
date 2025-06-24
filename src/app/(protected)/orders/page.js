@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import moment from 'moment-timezone';
 
@@ -21,7 +21,7 @@ function useDebounce(value, delay) {
     return debouncedValue;
 }
 
-export default function OrdersPage() {
+function OrdersPage() {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -31,8 +31,15 @@ export default function OrdersPage() {
         symbol: '',
         type: '',
     });
+    const [mounted, setMounted] = useState(false);
 
     const { data: session } = useSession();
+    const abortControllerRef = useRef(null);
+
+    // Ensure component is mounted on client
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     // Debounce the symbol search with 500ms delay
     const debouncedSymbol = useDebounce(filters.symbol, 500);
@@ -44,53 +51,74 @@ export default function OrdersPage() {
         type: filters.type,
     }), [filters.status, filters.type, debouncedSymbol]);
 
-    const fetchOrders = useCallback(async (resetPage = false) => {
+    const fetchOrders = useCallback(async (page = 1, currentFilters = effectiveFilters) => {
+        // Don't fetch if not mounted or no session
+        if (!mounted || !session) return;
+
+        // Cancel any ongoing request
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+
+        // Create new abort controller for this request
+        abortControllerRef.current = new AbortController();
+
         try {
             setLoading(true);
-            const currentPage = resetPage ? 1 : pagination.currentPage;
+            setError(null);
 
             const queryParams = new URLSearchParams({
-                page: currentPage,
-                ...Object.fromEntries(Object.entries(effectiveFilters).filter(([_, v]) => v))
+                page: page.toString(),
+                ...Object.fromEntries(Object.entries(currentFilters).filter(([_, v]) => v))
             });
 
-            const response = await fetch(`/api/orders?${queryParams}`);
+            const response = await fetch(`/api/orders?${queryParams}`, {
+                signal: abortControllerRef.current.signal
+            });
+
             if (!response.ok) throw new Error('Failed to fetch orders');
 
             const data = await response.json();
             setOrders(data.orders);
-            setPagination(data.pagination);
-
-            if (resetPage) {
-                setPagination(prev => ({ ...prev, currentPage: 1 }));
-            }
+            setPagination({
+                currentPage: page,
+                total: data.pagination.total,
+                pages: data.pagination.pages
+            });
         } catch (err) {
-            setError(err.message);
+            if (err.name !== 'AbortError') {
+                setError(err.message);
+            }
         } finally {
             setLoading(false);
         }
-    }, [effectiveFilters, pagination.currentPage]);
+    }, [effectiveFilters, mounted, session]);
 
-    // Effect for initial load and session changes
+    // Single effect to handle all data fetching
     useEffect(() => {
-        if (session) {
-            fetchOrders();
-        }
-    }, [session]);
+        if (!mounted || !session) return;
 
-    // Effect for filter changes (will trigger when effectiveFilters changes)
-    useEffect(() => {
-        if (session) {
-            fetchOrders(true); // Reset to page 1 when filters change
-        }
-    }, [effectiveFilters, session]);
+        // When filters change, reset to page 1
+        const shouldResetPage =
+            filters.status !== '' ||
+            debouncedSymbol !== '' ||
+            filters.type !== '';
 
-    // Effect for pagination changes only
-    useEffect(() => {
-        if (session && pagination.currentPage > 1) {
-            fetchOrders();
-        }
-    }, [pagination.currentPage, session]);
+        const pageToFetch = shouldResetPage && (
+            filters.status !== '' ||
+            debouncedSymbol !== filters.symbol || // Check if debounced value is different
+            filters.type !== ''
+        ) ? 1 : pagination.currentPage;
+
+        fetchOrders(pageToFetch, effectiveFilters);
+
+        // Cleanup function to abort request on unmount
+        return () => {
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+        };
+    }, [mounted, session, effectiveFilters, pagination.currentPage, fetchOrders]);
 
     const handleFilterChange = (filterType, value) => {
         setFilters(prev => ({
@@ -98,14 +126,16 @@ export default function OrdersPage() {
             [filterType]: value
         }));
 
-        // Reset pagination when filters change
+        // Reset pagination when non-symbol filters change immediately
         if (filterType !== 'symbol') {
             setPagination(prev => ({ ...prev, currentPage: 1 }));
         }
     };
 
     const handlePageChange = (newPage) => {
-        setPagination(prev => ({ ...prev, currentPage: newPage }));
+        if (newPage >= 1 && newPage <= pagination.pages && newPage !== pagination.currentPage) {
+            setPagination(prev => ({ ...prev, currentPage: newPage }));
+        }
     };
 
     const getStatusColor = (status) => {
@@ -140,6 +170,22 @@ export default function OrdersPage() {
             .tz('Asia/Kolkata')
             .format('DD/MM/YYYY');
     };
+
+    // Don't render anything until mounted (prevents SSR issues)
+    if (!mounted) {
+        return (
+            <div className="min-h-screen bg-gray-900 text-white p-8">
+                <div className="animate-pulse">
+                    <div className="h-8 bg-gray-800 rounded w-1/4 mb-6"></div>
+                    <div className="space-y-4">
+                        {[...Array(5)].map((_, i) => (
+                            <div key={i} className="h-16 bg-gray-800 rounded"></div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     if (loading && orders.length === 0) {
         return (
@@ -309,3 +355,6 @@ export default function OrdersPage() {
         </div>
     );
 }
+
+// Export with dynamic import to prevent SSR issues
+export default OrdersPage;

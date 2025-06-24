@@ -26,7 +26,21 @@ export async function GET(request) {
         const page = parseInt(searchParams.get('page')) || 1;
         const limit = parseInt(searchParams.get('limit')) || 10;
 
-        // Build aggregation pipeline starting from User collection
+        // Build match conditions for orders
+        const orderMatchConditions = {
+            ...(status && { status: status.toUpperCase() }),
+            ...(type && { type: type.toUpperCase() })
+        };
+
+        // Build symbol match condition
+        const symbolMatchCondition = symbol ? {
+            'stockDetails.symbol': {
+                $regex: symbol,
+                $options: 'i'
+            }
+        } : {};
+
+        // Main aggregation pipeline with facet to get both data and count efficiently
         const pipeline = [
             // Match user by email first
             {
@@ -43,8 +57,7 @@ export async function GET(request) {
                         {
                             $match: {
                                 $expr: { $eq: ['$userId', '$$userId'] },
-                                ...(status && { status: status.toUpperCase() }),
-                                ...(type && { type: type.toUpperCase() })
+                                ...orderMatchConditions
                             }
                         }
                     ],
@@ -53,7 +66,10 @@ export async function GET(request) {
             },
             // Unwind orders array
             {
-                $unwind: '$orders'
+                $unwind: {
+                    path: '$orders',
+                    preserveNullAndEmptyArrays: false
+                }
             },
             // Lookup stock details for each order
             {
@@ -66,121 +82,81 @@ export async function GET(request) {
             },
             // Unwind the stockDetails array
             {
-                $unwind: '$stockDetails'
+                $unwind: {
+                    path: '$stockDetails',
+                    preserveNullAndEmptyArrays: false
+                }
             },
             // Match symbol if provided
-            ...(symbol ? [{
-                $match: {
-                    'stockDetails.symbol': {
-                        $regex: symbol,
-                        $options: 'i'
-                    }
-                }
+            ...(Object.keys(symbolMatchCondition).length > 0 ? [{
+                $match: symbolMatchCondition
             }] : []),
-            // Project final fields in the same format as before
+            // Use facet to get both paginated data and total count
             {
-                $project: {
-                    _id: '$orders._id',
-                    symbol: '$stockDetails.symbol',
-                    type: { $toLower: '$orders.type' },
-                    quantity: '$orders.quantity',
-                    price: '$orders.price',
-                    timestamp: '$orders.timestamp',
-                    status: { $toLower: '$orders.status' },
-                    total: { $multiply: ['$orders.quantity', '$orders.price'] }
+                $facet: {
+                    data: [
+                        // Project final fields
+                        {
+                            $project: {
+                                _id: '$orders._id',
+                                symbol: '$stockDetails.symbol',
+                                type: { $toLower: '$orders.type' },
+                                quantity: '$orders.quantity',
+                                price: '$orders.price',
+                                timestamp: '$orders.timestamp',
+                                status: { $toLower: '$orders.status' },
+                                total: { $multiply: ['$orders.quantity', '$orders.price'] }
+                            }
+                        },
+                        // Sort by timestamp (most recent first)
+                        {
+                            $sort: { timestamp: -1 }
+                        },
+                        // Skip for pagination
+                        {
+                            $skip: (page - 1) * limit
+                        },
+                        // Limit results
+                        {
+                            $limit: limit
+                        }
+                    ],
+                    totalCount: [
+                        {
+                            $count: 'count'
+                        }
+                    ]
                 }
-            },
-            // Sort by timestamp
-            {
-                $sort: { timestamp: -1 }
-            },
-            // Skip for pagination
-            {
-                $skip: (page - 1) * limit
-            },
-            // Limit results
-            {
-                $limit: limit
             }
         ];
 
         // Execute aggregation
-        const orders = await User.aggregate(pipeline);
+        const result = await User.aggregate(pipeline);
 
-        // Get total count for pagination using a separate pipeline
-        const countPipeline = [
-            // Match user by email first
-            {
-                $match: {
-                    email: session.user.email
-                }
-            },
-            // Lookup orders for this user
-            {
-                $lookup: {
-                    from: 'orders',
-                    let: { userId: { $toString: '$_id' } },
-                    pipeline: [
-                        {
-                            $match: {
-                                $expr: { $eq: ['$userId', '$$userId'] },
-                                ...(status && { status: status.toUpperCase() }),
-                                ...(type && { type: type.toUpperCase() })
-                            }
-                        }
-                    ],
-                    as: 'orders'
-                }
-            },
-            // Unwind orders array
-            {
-                $unwind: '$orders'
-            },
-            // Lookup stock details for each order (needed for symbol filtering)
-            {
-                $lookup: {
-                    from: 'stocks',
-                    localField: 'orders.stockId',
-                    foreignField: '_id',
-                    as: 'stockDetails'
-                }
-            },
-            // Unwind the stockDetails array
-            {
-                $unwind: '$stockDetails'
-            },
-            // Match symbol if provided
-            ...(symbol ? [{
-                $match: {
-                    'stockDetails.symbol': {
-                        $regex: symbol,
-                        $options: 'i'
-                    }
-                }
-            }] : []),
-            // Count total documents
-            {
-                $count: 'total'
-            }
-        ];
+        const orders = result[0]?.data || [];
+        const total = result[0]?.totalCount[0]?.count || 0;
 
-        const totalCount = await User.aggregate(countPipeline);
-        const total = totalCount[0]?.total || 0;
+        // Calculate pagination info
+        const pages = Math.ceil(total / limit);
 
-        // Debug: Log order count
-        console.log('Order count for user:', total);
+        console.log(`Orders API - Page: ${page}, Total: ${total}, Orders returned: ${orders.length}`);
 
         return new Response(JSON.stringify({
             orders,
             pagination: {
                 total,
-                pages: Math.ceil(total / limit),
+                pages,
                 currentPage: page,
                 perPage: limit
             }
         }), {
             status: 200,
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            },
         });
 
     } catch (error) {
