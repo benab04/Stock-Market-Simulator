@@ -30,7 +30,24 @@ export default function Dashboard() {
     const FIVE_HOURS_MS = 5 * 60 * 60 * 1000;
 
 
-
+    function retryUpdateChart(symbol, attempt = 1) {
+        if (!svgRef.current) {
+            if (attempt <= 3) {
+                console.warn(`SVG not found, retrying updateChart for ${symbol} (attempt ${attempt})`);
+                setTimeout(() => retryUpdateChart(symbol, attempt + 1), 500);
+            } else {
+                console.error(`Failed to render chart for ${symbol} after 3 attempts.`);
+            }
+            return;
+        }
+        console.log(`Rendering chart for ${symbol} after ${attempt} attempt(s)`);
+        updateChart(symbol);
+    }
+    useEffect(() => {
+        if (selectedStock && dataRef.current[selectedStock]?.length) {
+            retryUpdateChart(selectedStock);
+        }
+    }, [selectedStock]);
 
     // Load stocks on mount
     useEffect(() => {
@@ -51,7 +68,8 @@ export default function Dashboard() {
         }
 
         loadStocks();
-    }, []);    // Load historical data when selected stock or timeframe changes
+    }, []);
+    // Load historical data when selected stock or timeframe changes
     useEffect(() => {
         async function loadHistoricalData() {
             if (!selectedStock) return;
@@ -128,6 +146,29 @@ export default function Dashboard() {
 
         loadHistoricalData();
     }, [selectedStock, selectedTimeFrame]);
+
+
+    function handleResetView() {
+        if (!svgRef.current || !dataRef.current[selectedStock]?.length) return;
+
+        const data = dataRef.current[selectedStock];
+        const latestTime = d3.max(data, d => new Date(d.startTime));
+        const initialStart = new Date(latestTime - FIVE_HOURS_MS);
+
+        // Reset the xScale domain
+        if (scaleRef.current.xScale) {
+            scaleRef.current.xScale.domain([initialStart, latestTime]);
+        }
+
+        // Remove any zoom/pan transform
+        if (svgRef.current.__zoom) {
+            // Remove D3's internal zoom transform
+            svgRef.current.__zoom = d3.zoomIdentity;
+        }
+
+        // Redraw the chart
+        updateChart(selectedStock);
+    }
 
     // useEffect(() => {
     //     async function fetchViewRangeData() {
@@ -445,7 +486,7 @@ export default function Dashboard() {
     }, [isLoading, selectedStock, selectedTimeFrame]);
 
     const timeFrameButtons = (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5 sm:gap-2">
             {[
                 { value: '5min', label: '5M', description: '5 Minutes' },
                 { value: '30min', label: '30M', description: '30 Minutes' },
@@ -453,24 +494,23 @@ export default function Dashboard() {
             ].map((timeFrame) => (
                 <button
                     key={timeFrame.value}
-                    className={`group relative px-4 py-2 rounded-lg font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 ${selectedTimeFrame === timeFrame.value
+                    className={`group relative px-2 py-1.5 sm:px-3 sm:py-2 lg:px-4 lg:py-2 rounded-md sm:rounded-lg font-medium text-xs sm:text-sm lg:text-base transition-all duration-200 transform hover:scale-105 active:scale-95 min-w-[2.5rem] sm:min-w-[3rem] lg:min-w-[3.5rem] ${selectedTimeFrame === timeFrame.value
                         ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/25 border border-blue-500/50'
                         : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 hover:text-white border border-gray-600/30 hover:border-gray-500/50'
                         }`}
                     onClick={() => setSelectedTimeFrame(timeFrame.value)}
                     title={timeFrame.description}
                 >
-                    <span className="relative z-10">{timeFrame.label}</span>
+                    <span className="relative z-10 whitespace-nowrap">{timeFrame.label}</span>
                     {selectedTimeFrame === timeFrame.value && (
-                        <div className="absolute inset-0 bg-white/10 rounded-lg"></div>
+                        <div className="absolute inset-0 bg-white/10 rounded-md sm:rounded-lg"></div>
                     )}
-                    <div className={`absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-0 h-0.5 bg-gradient-to-r from-blue-400 to-purple-500 transition-all duration-200 ${selectedTimeFrame === timeFrame.value ? 'w-full' : 'group-hover:w-full'
+                    <div className={`absolute -bottom-0.5 sm:-bottom-1 left-1/2 transform -translate-x-1/2 w-0 h-0.5 bg-gradient-to-r from-blue-400 to-purple-500 transition-all duration-200 ${selectedTimeFrame === timeFrame.value ? 'w-full' : 'group-hover:w-full'
                         }`}></div>
                 </button>
             ))}
         </div>
     );
-
 
     const updateChartData = (symbol, newData) => {
         if (!svgRef.current || !scaleRef.current.xScale) {
@@ -1271,6 +1311,18 @@ export default function Dashboard() {
                                         </div>
                                         <div className="flex flex-wrap gap-2">
                                             {timeFrameButtons}
+                                            {selectedStock && (
+                                                <button
+                                                    onClick={() => handleResetView()}
+                                                    className="px-3 py-1.5 lg:px-4 lg:py-2 rounded-lg bg-gray-700/50 border border-gray-600/30 text-gray-300 hover:bg-gray-600/50 hover:border-gray-500/50 hover:text-white transition-all duration-200 text-xs lg:text-sm font-medium flex items-center gap-2 backdrop-blur-sm"
+                                                    title="Reset Chart View"
+                                                >
+                                                    <svg className="w-4 h-4 lg:w-5 lg:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                    </svg>
+                                                    {/* <span className="hidden sm:inline">Reset</span> */}
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -1290,6 +1342,7 @@ export default function Dashboard() {
                                                         }}
                                                     />
                                                 </div>
+
                                             </div>
                                         </div>
                                     ) : (
@@ -1299,6 +1352,7 @@ export default function Dashboard() {
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                                                 </svg>
                                             </div>
+
                                             <h3 className="text-xl lg:text-2xl font-semibold text-gray-400 mb-2">
                                                 Select a Stock
                                             </h3>
@@ -1308,6 +1362,7 @@ export default function Dashboard() {
                                         </div>
                                     )}
                                 </div>
+
                             </div>
 
                             {/* Trade Form Section - Now on the right */}
