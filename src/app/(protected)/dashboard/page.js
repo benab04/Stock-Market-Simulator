@@ -647,6 +647,7 @@ export default function Dashboard() {
                 svgRef: !!svgRef.current,
                 data: !!dataRef.current[symbol]?.length
             });
+            handleResetView();
             return;
         }
 
