@@ -1,10 +1,12 @@
-// nextjs-frontend/pages/api/stockData.js or app/api/stockData/route.js
+// nextjs-frontend/pages/api/stockData.js or app/api/stockData/upstash/route.js
 import { Redis } from '@upstash/redis';
 import dbConnect from '@/lib/db';
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 export const runtime = 'nodejs'
+
+console.log('Using Upstash Redis for stock data streaming');
 
 // Upstash Redis HTTP client
 const redis = new Redis({

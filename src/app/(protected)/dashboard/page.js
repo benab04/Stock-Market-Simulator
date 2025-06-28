@@ -21,6 +21,9 @@ export default function Dashboard() {
         end: null
     });
 
+    const stockUpdateRoute = process.env.NEXT_PUBLIC_STOCK_UPDATE_ROUTE || '/api/stockData';
+
+    console.log('Using stock update route:', stockUpdateRoute);
     // Constants for time windows
     const TIME_WINDOWS = {
         '5min': { hours: 48, candleWidth: 5 },
@@ -388,7 +391,7 @@ export default function Dashboard() {
 
         async function setupSSE() {
             try {
-                eventSource = new EventSource('/api/stockData');
+                eventSource = new EventSource(stockUpdateRoute);
 
                 eventSource.onmessage = async (event) => {
                     if (!isMounted) return;

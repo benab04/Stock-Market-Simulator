@@ -1,10 +1,13 @@
-// nextjs-frontend/pages/api/stockData.js or app/api/stockData/route.js
+// nextjs-frontend/pages/api/stockData.js or app/api/stockData/redis/route.js
 import Redis from 'ioredis';
 import dbConnect from '@/lib/db';
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 export const runtime = 'nodejs'
+
+console.log('Using Redis for stock data streaming');
+
 
 // Redis connection
 const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
