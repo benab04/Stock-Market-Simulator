@@ -23,7 +23,6 @@ export default function Dashboard() {
 
     const stockUpdateRoute = process.env.NEXT_PUBLIC_STOCK_UPDATE_ROUTE || '/api/stockData';
 
-    console.log('Using stock update route:', stockUpdateRoute);
     // Constants for time windows
     const TIME_WINDOWS = {
         '5min': { hours: 48, candleWidth: 5 },
