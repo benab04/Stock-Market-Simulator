@@ -123,7 +123,7 @@ export default function Home() {
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4 sm:mb-6 bg-gradient-to-r from-gray-300 via-white to-gray-300 bg-clip-text text-transparent font-serif">
               Ready to Master Trading?
             </h2>
-            <p className="text-base sm:text-lg lg:text-xl text-gray-400 mb-6 sm:mb-8 max-w-sm sm:max-w-xl lg:max-w-2xl mx-auto leading-relaxed">
+            <p className="text-base  sm:text-lg lg:text-xl text-gray-400 mb-6 sm:mb-8 max-w-sm sm:max-w-xl lg:max-w-2xl mx-auto leading-relaxed">
               Join thousands of traders who have honed their skills in our realistic trading environment
             </p>
             <Link
