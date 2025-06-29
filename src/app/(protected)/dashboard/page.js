@@ -5,6 +5,7 @@ import * as d3 from 'd3';
 import TradeForm from '@/components/TradeForm';
 import MobileStocksList from '@/components/MobileStocksView';
 import { stockCache } from '@/lib/stockCache';
+import { set } from 'mongoose';
 
 export default function Dashboard() {
     const svgRef = useRef(null);
@@ -14,7 +15,7 @@ export default function Dashboard() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const [stocks, setStocks] = useState([]);
-    const [selectedStock, setSelectedStock] = useState('ABINFD');
+    const [selectedStock, setSelectedStock] = useState(null);
     const [selectedTimeFrame, setSelectedTimeFrame] = useState('5min');
     const [viewRange, setViewRange] = useState({
         start: null,
@@ -61,6 +62,8 @@ export default function Dashboard() {
                 }
                 const stocksData = await response.json();
                 setStocks(stocksData);
+                setSelectedStock(stocksData[0].symbol); // Set default selected stock
+                console.log(stocksData[0].symbol)
                 setIsLoading(false);
             } catch (error) {
                 console.error('Error loading stocks:', error);
