@@ -43,6 +43,10 @@ const userSchema = new mongoose.Schema({
         type: String,
         enum: ['ACTIVE', 'INACTIVE'],
         default: 'ACTIVE'
+    },
+    avatarId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Avatar',
     }
 }, {
     timestamps: true
