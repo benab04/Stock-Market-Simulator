@@ -9,6 +9,7 @@ export default function TradeForm({ stock, onTrade }) {
     const [holdings, setHoldings] = useState(null);
     const [holdingsLoading, setHoldingsLoading] = useState(true);
     const [balance, setBalance] = useState(null);
+    const [balanceLoading, setBalanceLoading] = useState(true);
 
     const presetQuantities = [5, 10, 25, 50];
 
@@ -30,6 +31,7 @@ export default function TradeForm({ stock, onTrade }) {
                     setHoldings(data.holding);
                 }
                 const fetchBalance = async () => {
+                    setBalanceLoading(true);
                     const response = await fetch('/api/user/balance', {
                         method: 'GET',
                         headers: {
@@ -41,12 +43,14 @@ export default function TradeForm({ stock, onTrade }) {
                         throw new Error(data.error || 'Failed to fetch balance');
                     }
                     setBalance(data.balance);
+                    setBalanceLoading(false);
                 }
                 fetchStockHoldings();
                 fetchBalance();
             } catch (error) {
                 console.error('Error fetching stock holdings:', error);
                 setHoldings(null);
+                setBalanceLoading(false);
             } finally {
                 setHoldingsLoading(false);
             }
@@ -159,6 +163,25 @@ export default function TradeForm({ stock, onTrade }) {
                 </div>
             </div>
 
+            {/* Balance Section - Always visible */}
+            {balanceLoading ? (
+                <div className="mb-4 bg-gray-800/30 rounded-lg p-3 border border-gray-700/30">
+                    <div className="animate-pulse">
+                        <div className="flex justify-between items-center mb-2">
+                            <div className="h-3 bg-gray-700 rounded w-20"></div>
+                            <div className="h-3 bg-gray-700 rounded w-16"></div>
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                <div className="mb-4 bg-gray-800/30 rounded-lg p-3 border border-gray-700/30">
+                    <div className="flex justify-between items-center mb-3">
+                        <span className="text-xs font-medium text-gray-400 uppercase tracking-wide font-semibold">Balance</span>
+                        <span className="text-xs text-blue-400 font-medium font-semibold">₹ {balance?.toFixed(2).toLocaleString() || '0.00'}</span>
+                    </div>
+                </div>
+            )}
+
             {/* Holdings Section */}
             {holdingsLoading ? (
                 <div className="mb-4 bg-gray-800/30 rounded-lg p-3 border border-gray-700/30">
@@ -177,23 +200,8 @@ export default function TradeForm({ stock, onTrade }) {
                 <div className="mb-4 bg-gray-800/30 rounded-lg p-3 border border-gray-700/30">
                     <div className="flex justify-between items-center mb-3">
                         <span className="text-xs font-medium text-gray-400 uppercase tracking-wide font-semibold">Holdings</span>
-                        <span className="text-xs text-blue-400 font-medium  font-semibold">{holdings.quantity} shares</span>
+                        <span className="text-xs text-blue-400 font-medium font-semibold">{holdings.quantity} shares</span>
                     </div>
-                    {balance && <div className="flex justify-between items-center mb-3">
-                        <span className="text-xs font-medium text-gray-400 uppercase tracking-wide font-semibold">Balance</span>
-                        <span className="text-xs text-blue-400 font-medium  font-semibold">₹ {balance.toFixed(2).toLocaleString()}</span>
-                    </div>}
-
-                    {/* <div className="grid grid-cols-2 gap-3 mb-3">
-                        <div className="text-center">
-                            <div className="text-xs text-gray-500 mb-1">Invested</div>
-                            <div className="text-sm font-medium text-white">₹{holdings.investedValue.toLocaleString()}</div>
-                        </div>
-                        <div className="text-center">
-                            <div className="text-xs text-gray-500 mb-1">Current Value</div>
-                            <div className="text-sm font-medium text-white">₹{holdings.currentValue.toLocaleString()}</div>
-                        </div>
-                    </div> */}
 
                     <div className="bg-gray-900/40 rounded-lg p-2 border border-gray-700/20">
                         <div className="flex justify-between items-center">
@@ -214,14 +222,11 @@ export default function TradeForm({ stock, onTrade }) {
                                 <span className="text-xs">
                                     ₹{holdings.currentValue.toLocaleString()}
                                 </span>
-                                {/* <span className="text-xs">
-                                    ({Math.abs(holdings.pnlPercentage).toFixed(2)}%)
-                                </span> */}
                             </div>
                         </div>
                     </div>
                 </div>
-            ) : (
+            ) : !holdingsLoading && (
                 <div className="mb-4 bg-gray-800/20 rounded-lg p-3 border border-gray-700/20">
                     <div className="flex items-center justify-center">
                         <div className="text-center">
