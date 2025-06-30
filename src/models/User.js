@@ -47,6 +47,10 @@ const userSchema = new mongoose.Schema({
     avatarId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Avatar',
+    },
+    role: {
+        type: String,
+        enum: ['admin', 'user']
     }
 }, {
     timestamps: true
