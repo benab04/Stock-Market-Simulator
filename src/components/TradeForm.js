@@ -31,7 +31,7 @@ export default function TradeForm({ stock, onTrade }) {
                     setHoldings(data.holding);
                 }
                 const fetchBalance = async () => {
-                    setBalanceLoading(true);
+                    // setBalanceLoading(true);
                     const response = await fetch('/api/user/balance', {
                         method: 'GET',
                         headers: {
