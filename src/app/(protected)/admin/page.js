@@ -229,7 +229,6 @@ function AdminPage() {
             if (!response.ok) throw new Error('Failed to download order history');
 
             const orderData = await response.json();
-            console.log(orderData);
 
             // Extract orders array from the response
             const orders = orderData.orders || [];

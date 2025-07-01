@@ -244,7 +244,6 @@ export const GET = withAuth(async (req) => {
             totalCount: orders.length,
             timestamp: new Date().toISOString()
         };
-        console.log('Orders fetched successfully:', response);
 
         return Response.json(response);
 
