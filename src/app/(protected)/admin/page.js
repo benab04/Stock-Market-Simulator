@@ -96,15 +96,52 @@ function AdminPage() {
         }
     }, []);
 
-    // Download user data
+    // Replace the downloadUserData function with this fixed version
+
+    // Helper function to convert JSON to CSV
+    const convertToCSV = (data) => {
+        if (!data || data.length === 0) return '';
+
+        // Get headers from the first object
+        const headers = Object.keys(data[0]);
+
+        // Create CSV content
+        const csvContent = [
+            // Headers row
+            headers.join(','),
+            // Data rows
+            ...data.map(row =>
+                headers.map(header => {
+                    const value = row[header];
+                    // Handle values that might contain commas or quotes
+                    if (typeof value === 'string' && value.includes(',')) {
+                        return `"${value.replace(/"/g, '""')}"`;
+                    }
+                    return value;
+                }).join(',')
+            )
+        ].join('\n');
+
+        return csvContent;
+    };
+
+    // Fixed download user data function
     const downloadUserData = async () => {
         setDownloadingUsers(true);
         try {
             const response = await fetch('/api/admin/data/users');
             if (!response.ok) throw new Error('Failed to download user data');
 
-            const blob = await response.blob();
+            // Get JSON data instead of blob
+            const userData = await response.json();
+
+            // Convert JSON to CSV
+            const csvContent = convertToCSV(userData);
+
+            // Create blob from CSV content
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const url = window.URL.createObjectURL(blob);
+
             const a = document.createElement('a');
             a.style.display = 'none';
             a.href = url;
@@ -127,7 +164,13 @@ function AdminPage() {
             const response = await fetch('/api/admin/data/orders');
             if (!response.ok) throw new Error('Failed to download order history');
 
-            const blob = await response.blob();
+            const orderData = await response.json();
+
+            // Convert JSON to CSV
+            const csvContent = convertToCSV(orderData);
+
+            // Create blob from CSV content
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.style.display = 'none';
