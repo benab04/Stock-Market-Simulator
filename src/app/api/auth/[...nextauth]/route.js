@@ -28,11 +28,12 @@ export const authOptions = {
                         throw new Error('Invalid password');
                     }
 
-                    // Return user without password
+                    // Return user without password - role will be passed through callbacks
                     return {
                         id: user._id.toString(),
                         email: user.email,
-                        name: user.name
+                        name: user.name,
+                        role: user.role || "user"
                     };
                 } catch (error) {
                     throw new Error(error.message);
@@ -46,14 +47,18 @@ export const authOptions = {
     },
     callbacks: {
         async jwt({ token, user }) {
+            // When user signs in, add user data to token
             if (user) {
                 token.id = user.id;
+                token.role = user.role; // Add role to JWT token
             }
             return token;
         },
         async session({ session, token }) {
+            // Pass token data to session
             if (token) {
                 session.user.id = token.id;
+                session.user.role = token.role; // Add role to session
             }
             return session;
         }
@@ -66,4 +71,4 @@ export const authOptions = {
 };
 
 const handler = NextAuth(authOptions);
-export { handler as GET, handler as POST }; 
+export { handler as GET, handler as POST };

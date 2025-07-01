@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 
 export default function TradeForm({ stock, onTrade }) {
+    const { data: session } = useSession();
     const [quantity, setQuantity] = useState(1);
     const [loading, setLoading] = useState(false);
     const [activeButton, setActiveButton] = useState(null);
@@ -351,6 +353,14 @@ export default function TradeForm({ stock, onTrade }) {
                         )}
                     </button>
                 </div>
+
+                {session?.user?.role === 'admin' && <div className="mb-4 bg-gray-800/30 rounded-lg p-3 border border-gray-700/30">
+                    <div className="flex flex-col items-center text-center space-y-1">
+                        <span className="text-xs text-green-400 font-semibold">Unlimited Trading Privileges</span>
+                        <span className="text-xs text-green-400 font-semibold">Trade During Closed Market</span>
+                    </div>
+                </div>}
+
 
                 {/* Error Message */}
                 {error && (

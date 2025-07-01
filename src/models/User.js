@@ -35,6 +35,11 @@ const userSchema = new mongoose.Schema({
         type: Number,
         default: 100000 // Starting balance of ₹100,000
     },
+    realizedPnL: {
+        type: Number,
+        default: 0,
+        required: true
+    },
     createdAt: {
         type: Date,
         default: Date.now
@@ -50,7 +55,8 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['admin', 'user']
+        enum: ['admin', 'user'],
+        default: 'user'
     }
 }, {
     timestamps: true

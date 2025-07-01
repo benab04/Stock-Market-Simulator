@@ -2,7 +2,6 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]/route';
 import dbConnect from '@/lib/db';
 import User from '@/models/User';
-import Stock from '@/models/Stock';
 
 export const revalidate = 0
 export const runtime = 'nodejs'
@@ -42,7 +41,8 @@ export async function GET() {
                 $project: {
                     balance: 1,
                     portfolio: 1,
-                    stockData: 1
+                    stockData: 1,
+                    realizedPnL: 1
                 }
             }
         ]);
@@ -59,6 +59,7 @@ export async function GET() {
                     totalCurrent: 0,
                     totalPnL: 0,
                     totalPnLPercentage: 0,
+                    realizedPnL: userResult.realizedPnL || 0,
                     availableBalance: userResult.balance,
                     portfolioValue: userResult.balance
                 },
@@ -108,6 +109,7 @@ export async function GET() {
             totalPnL,
             totalPnLPercentage: totalInvested > 0 ? (totalPnL / totalInvested) * 100 : 0,
             availableBalance: userResult.balance,
+            realizedPnL: userResult.realizedPnL || 0,
             portfolioValue
         };
 
