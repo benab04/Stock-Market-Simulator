@@ -157,6 +157,70 @@ function AdminPage() {
         }
     };
 
+
+    // Helper function to convert orders to CSV
+    const convertOrdersToCSV = (orders, summary) => {
+        // Define CSV headers
+        const headers = [
+            'Order ID',
+            'User Name',
+            'User Email',
+            'User Role',
+            'Stock Symbol',
+            'Company Name',
+            'Order Type',
+            'Quantity',
+            'Price',
+            'Total Value',
+            'Status',
+            'Timestamp',
+            'Current Stock Price',
+            'P&L Indicator'
+        ];
+
+        // // Create summary section
+        // const summarySection = summary ? [
+        //     '# ORDER HISTORY SUMMARY',
+        //     `# Generated on: ${new Date().toLocaleString()}`,
+        //     `# Total Orders: ${summary.totalOrders}`,
+        //     `# Buy Orders: ${summary.totalBuyOrders}`,
+        //     `# Sell Orders: ${summary.totalSellOrders}`,
+        //     `# Executed Orders: ${summary.executedOrders}`,
+        //     `# Pending Orders: ${summary.pendingOrders}`,
+        //     `# Cancelled Orders: ${summary.cancelledOrders}`,
+        //     `# Total Volume: ₹${summary.totalVolume?.toLocaleString() || 0}`,
+        //     '',
+        //     '# DETAILED ORDER DATA'
+        // ].join('\n') + '\n' : '';
+
+        // Convert orders to CSV rows
+        const csvRows = orders.map(order => [
+            order.orderId || '',
+            `"${order.userName || 'Unknown'}"`,
+            order.userEmail || '',
+            order.userRole || 'user',
+            order.stockSymbol || '',
+            `"${order.companyName || 'Unknown'}"`,
+            order.type || '',
+            order.quantity || 0,
+            order.price || 0,
+            order.totalValue || 0,
+            order.status || '',
+            order.formattedTimestamp || order.timestamp || '',
+            order.currentStockPrice || 0,
+            order.pnlIndicator || ''
+        ]);
+
+        // Combine headers and rows
+        const csvContent =
+            // summarySection +
+            headers.join(',') + '\n' +
+            csvRows.map(row => row.join(',')).join('\n');
+
+        return csvContent;
+    };
+
+
     // Download order history
     const downloadOrderHistory = async () => {
         setDownloadingOrders(true);
@@ -165,13 +229,23 @@ function AdminPage() {
             if (!response.ok) throw new Error('Failed to download order history');
 
             const orderData = await response.json();
+            console.log(orderData);
 
-            // Convert JSON to CSV
-            const csvContent = convertToCSV(orderData);
+            // Extract orders array from the response
+            const orders = orderData.orders || [];
+
+            if (orders.length === 0) {
+                setError('No orders found to download');
+                return;
+            }
+
+            // Convert orders to CSV format
+            const csvContent = convertOrdersToCSV(orders, orderData.summary);
 
             // Create blob from CSV content
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const url = window.URL.createObjectURL(blob);
+
             const a = document.createElement('a');
             a.style.display = 'none';
             a.href = url;
@@ -180,12 +254,18 @@ function AdminPage() {
             a.click();
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
+
+            // Optional: Show success message with summary
+            console.log(`Downloaded ${orders.length} orders successfully`);
+
         } catch (err) {
             setError(err.message);
         } finally {
             setDownloadingOrders(false);
         }
     };
+
+
 
     // Toggle market status
     const toggleMarketStatus = async () => {
