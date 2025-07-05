@@ -36,7 +36,7 @@ export async function POST(req) {
             email,
             password,
             avatarId,
-            balance: 100000, // Starting balance ₹100,000
+            balance: 500000000, // Starting balance ₹50,00,00,000
             portfolio: []
         });
 

@@ -32,7 +32,7 @@ const userSchema = new mongoose.Schema({
     portfolio: [portfolioSchema],
     balance: {
         type: Number,
-        default: 100000 // Starting balance of ₹100,000
+        default: 500000000 // Starting balance of ₹100,000
     },
     createdAt: {
         type: Date,
