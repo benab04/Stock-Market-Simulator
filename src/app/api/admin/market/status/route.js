@@ -2,7 +2,6 @@ import { withAuth } from '@/lib/auth';
 import Market from '@/models/Market';
 import dbConnect from '@/lib/db';
 
-const ADMIN_SECRET = process.env.ADMIN_SECRET;
 
 export const GET = withAuth(async () => {
     try {
