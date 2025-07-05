@@ -174,9 +174,9 @@ export default function Navbar() {
                                 <Link href="/orders" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
                                     Orders
                                 </Link>
-                                {session?.user?.role === 'admin' && <Link href="/admin" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
+                                <Link href="/admin" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
                                     Admin
-                                </Link>}
+                                </Link>
                             </div>
                         </div>
                     </div>
