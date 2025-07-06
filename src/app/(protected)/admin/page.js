@@ -409,7 +409,7 @@ function AdminPage() {
             header: 'Date',
             render: (order) => (
                 <div className="text-gray-300 text-sm">
-                    {order.timestamp ? new Date(order.timestamp).toLocaleDateString() : 'N/A'}
+                    {order.timestamp ? new Date(order.timestamp).toLocaleDateString('en-GB') : 'N/A'}
                 </div>
             )
         }
