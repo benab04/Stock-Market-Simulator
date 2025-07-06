@@ -2,11 +2,14 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { signOut, useSession } from 'next-auth/react';
+import { convertToCSV, convertOrdersToCSV, formatCurrency, getPnlColor } from '@/lib/helper';
+import DataTable from '@/components/DataTable';
 
 function AdminPage() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [adminSecret, setAdminSecret] = useState('');
     const [users, setUsers] = useState([]);
+    const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [marketStatus, setMarketStatus] = useState(null);
@@ -15,6 +18,8 @@ function AdminPage() {
     const [downloadingUsers, setDownloadingUsers] = useState(false);
     const [downloadingOrders, setDownloadingOrders] = useState(false);
     const [marketActionLoading, setMarketActionLoading] = useState(false);
+    const [resetDBLoading, setResetDBLoading] = useState(false);
+    const [activeTab, setActiveTab] = useState('users'); // 'users' or 'orders'
 
     const { data: session } = useSession();
 
@@ -23,8 +28,116 @@ function AdminPage() {
         setMounted(true);
     }, []);
 
+    // Auto-refresh data every 5 minutes
+    useEffect(() => {
+        if (isAuthenticated) {
+            const interval = setInterval(() => {
+                console.log('Auto-refreshing data...');
+                fetchUsers();
+                fetchOrders();
+                fetchMarketStatus();
+            }, 5 * 60 * 1000); // 5 minutes
+
+            return () => clearInterval(interval);
+        }
+    }, [isAuthenticated]);
+
     const handleSignOut = async () => {
         await signOut({ callbackUrl: '/login' });
+    };
+
+    const handleResetDB = async () => {
+        const confirmationText = "reset all";
+        const userInput = prompt(`
+            This action will permanently:
+            - Delete ALL past orders and price history for all stocks
+            - Remove ALL user holdings
+            - Set balance to ₹50 Cr for all users
+            - Clear entire trading history
+
+            AUTOMATIC BACKUP:
+            ✓ Current users will be downloaded automatically
+            ✓ Order history will be downloaded automatically
+
+            RECOMMENDATION:
+            Manually download all data before proceeding.
+
+            Type "${confirmationText}" to confirm this:
+        `);
+        if (!userInput || userInput.trim() === null) {
+            return;
+        }
+
+        if (userInput.trim() !== confirmationText) {
+            alert('Confirmation text does not match. Database reset cancelled.');
+            return;
+        }
+
+        setResetDBLoading(true);
+        setError(null);
+
+        try {
+            // If your download functions return promises, use this approach:
+            await Promise.all([
+                downloadOrderHistory(),
+                downloadUserData()
+            ]);
+
+            console.log('All downloads completed successfully');
+
+            const response = await fetch('/api/admin/data/reset', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ secret: adminSecret }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to reset database');
+            }
+
+            alert('Database reset successfully. All orders and price history have been cleared.');
+            fetchUsers();
+            fetchOrders();
+
+        } catch (err) {
+            if (err.message.includes('download')) {
+                const proceedAnyway = confirm(
+                    'Warning: Backup download failed. Do you want to proceed with the database reset anyway? This action cannot be undone.'
+                );
+
+                if (!proceedAnyway) {
+                    alert('Database reset cancelled due to download failure.');
+                    return;
+                }
+
+                // If user chooses to proceed, retry the database reset
+                try {
+                    const response = await fetch('/api/admin/data/reset', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ secret: adminSecret }),
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to reset database');
+                    }
+
+                    alert('Database reset successfully. All orders and price history have been cleared.');
+                    fetchUsers();
+                    fetchOrders();
+                } catch (resetErr) {
+                    setError(resetErr.message);
+                }
+            } else {
+                setError(err.message);
+            }
+        } finally {
+            setResetDBLoading(false);
+        }
     };
 
     // Verify admin secret
@@ -54,6 +167,7 @@ function AdminPage() {
             else {
                 setIsAuthenticated(true);
                 fetchUsers();
+                fetchOrders();
                 fetchMarketStatus();
             }
 
@@ -82,6 +196,24 @@ function AdminPage() {
         }
     }, []);
 
+    // Fetch all orders
+    const fetchOrders = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+
+        try {
+            const response = await fetch('/api/admin/data/orders');
+            if (!response.ok) throw new Error('Failed to fetch orders');
+
+            const data = await response.json();
+            setOrders(data.orders || []);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
     // Fetch market status
     const fetchMarketStatus = useCallback(async () => {
         try {
@@ -89,41 +221,11 @@ function AdminPage() {
             if (!response.ok) throw new Error('Failed to fetch market status');
 
             const data = await response.json();
-
             setMarketStatus(data.status);
         } catch (err) {
             console.error('Failed to fetch market status:', err);
         }
     }, []);
-
-    // Replace the downloadUserData function with this fixed version
-
-    // Helper function to convert JSON to CSV
-    const convertToCSV = (data) => {
-        if (!data || data.length === 0) return '';
-
-        // Get headers from the first object
-        const headers = Object.keys(data[0]);
-
-        // Create CSV content
-        const csvContent = [
-            // Headers row
-            headers.join(','),
-            // Data rows
-            ...data.map(row =>
-                headers.map(header => {
-                    const value = row[header];
-                    // Handle values that might contain commas or quotes
-                    if (typeof value === 'string' && value.includes(',')) {
-                        return `"${value.replace(/"/g, '""')}"`;
-                    }
-                    return value;
-                }).join(',')
-            )
-        ].join('\n');
-
-        return csvContent;
-    };
 
     // Fixed download user data function
     const downloadUserData = async () => {
@@ -156,70 +258,6 @@ function AdminPage() {
             setDownloadingUsers(false);
         }
     };
-
-
-    // Helper function to convert orders to CSV
-    const convertOrdersToCSV = (orders, summary) => {
-        // Define CSV headers
-        const headers = [
-            'Order ID',
-            'User Name',
-            'User Email',
-            'User Role',
-            'Stock Symbol',
-            'Company Name',
-            'Order Type',
-            'Quantity',
-            'Price',
-            'Total Value',
-            'Status',
-            'Timestamp',
-            'Current Stock Price',
-            'P&L Indicator'
-        ];
-
-        // // Create summary section
-        // const summarySection = summary ? [
-        //     '# ORDER HISTORY SUMMARY',
-        //     `# Generated on: ${new Date().toLocaleString()}`,
-        //     `# Total Orders: ${summary.totalOrders}`,
-        //     `# Buy Orders: ${summary.totalBuyOrders}`,
-        //     `# Sell Orders: ${summary.totalSellOrders}`,
-        //     `# Executed Orders: ${summary.executedOrders}`,
-        //     `# Pending Orders: ${summary.pendingOrders}`,
-        //     `# Cancelled Orders: ${summary.cancelledOrders}`,
-        //     `# Total Volume: ₹${summary.totalVolume?.toLocaleString() || 0}`,
-        //     '',
-        //     '# DETAILED ORDER DATA'
-        // ].join('\n') + '\n' : '';
-
-        // Convert orders to CSV rows
-        const csvRows = orders.map(order => [
-            order.orderId || '',
-            `"${order.userName || 'Unknown'}"`,
-            order.userEmail || '',
-            order.userRole || 'user',
-            order.stockSymbol || '',
-            `"${order.companyName || 'Unknown'}"`,
-            order.type || '',
-            order.quantity || 0,
-            order.price || 0,
-            order.totalValue || 0,
-            order.status || '',
-            order.formattedTimestamp || order.timestamp || '',
-            order.currentStockPrice || 0,
-            order.pnlIndicator || ''
-        ]);
-
-        // Combine headers and rows
-        const csvContent =
-            // summarySection +
-            headers.join(',') + '\n' +
-            csvRows.map(row => row.join(',')).join('\n');
-
-        return csvContent;
-    };
-
 
     // Download order history
     const downloadOrderHistory = async () => {
@@ -264,8 +302,6 @@ function AdminPage() {
         }
     };
 
-
-
     // Toggle market status
     const toggleMarketStatus = async () => {
         setMarketActionLoading(true);
@@ -292,20 +328,92 @@ function AdminPage() {
         }
     };
 
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat('en-IN', {
-            style: 'currency',
-            currency: 'INR',
-            minimumFractionDigits: 2,
-        }).format(amount);
+    // Refresh data function
+    const refreshData = () => {
+        fetchUsers();
+        fetchOrders();
+        fetchMarketStatus();
     };
 
-    const getPnlColor = (pnl) => {
-        const value = parseFloat(pnl);
-        if (value > 0) return 'text-green-500';
-        if (value < 0) return 'text-red-500';
-        return 'text-gray-400';
-    };
+    // Define column configurations
+    const userColumns = [
+        {
+            key: 'name',
+            header: 'Name',
+            render: (user) => <div className="font-medium text-white">{user.name}</div>
+        },
+        {
+            key: 'email',
+            header: 'Email',
+            render: (user) => <div className="text-gray-300 text-sm">{user.email}</div>
+        },
+        {
+            key: 'balance',
+            header: 'Balance',
+            render: (user) => <div className="font-medium text-white">{formatCurrency(user.balance)}</div>
+        },
+        {
+            key: 'realized_pnl',
+            header: 'Realized P&L',
+            render: (user) => <div className={`font-medium ${getPnlColor(user.realized_pnl)}`}>{formatCurrency(user.realized_pnl)}</div>
+        },
+        {
+            key: 'unrealized_pnl',
+            header: 'Unrealized P&L',
+            render: (user) => <div className={`font-medium ${getPnlColor(user.unrealized_pnl)}`}>{formatCurrency(user.unrealized_pnl)}</div>
+        },
+        {
+            key: 'totalStocks',
+            header: 'Total Stocks',
+            render: (user) => <div className="font-medium text-white">{user.totalStocks?.toLocaleString() || 0}</div>
+        }
+    ];
+
+    const orderColumns = [
+        {
+            key: 'user_name',
+            header: 'User',
+            render: (order) => <div className="font-medium text-white">{order.userName || 'N/A'}</div>
+        },
+        {
+            key: 'ticker',
+            header: 'Stock',
+            render: (order) => <div className="font-medium text-blue-400">{order.stockSymbol}</div>
+        },
+        {
+            key: 'order_type',
+            header: 'Type',
+            render: (order) => (
+                <div className={`font-medium ${order.type === 'BUY' ? 'text-green-400' : 'text-red-400'}`}>
+                    {order.type}
+                </div>
+            )
+        },
+        {
+            key: 'quantity',
+            header: 'Quantity',
+            render: (order) => <div className="font-medium text-white">{order.quantity?.toLocaleString() || 0}</div>
+        },
+        {
+            key: 'price',
+            header: 'Price',
+            render: (order) => <div className="font-medium text-white">{formatCurrency(order.price)}</div>
+        },
+        {
+            key: 'total_amount',
+            header: 'Total Amount',
+            render: (order) => <div className="font-medium text-white">{formatCurrency(order.totalValue)}</div>
+        },
+        {
+            key: 'created_at',
+            header: 'Date',
+            render: (order) => (
+                <div className="text-gray-300 text-sm">
+                    {order.timestamp ? new Date(order.timestamp).toLocaleDateString() : 'N/A'}
+                </div>
+            )
+        }
+    ];
 
     // Don't render anything until mounted (prevents SSR issues)
     if (!mounted) {
@@ -404,7 +512,7 @@ function AdminPage() {
             )}
 
             {/* Action Buttons */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
                 <button
                     onClick={downloadUserData}
                     disabled={downloadingUsers}
@@ -476,7 +584,7 @@ function AdminPage() {
                 </button>
 
                 <button
-                    onClick={fetchUsers}
+                    onClick={refreshData}
                     disabled={loading}
                     className="bg-gray-600 hover:bg-gray-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
                 >
@@ -495,85 +603,72 @@ function AdminPage() {
                         </>
                     )}
                 </button>
-            </div>
-
-            {/* Users Table */}
-            <div className="bg-gray-800 rounded-xl overflow-hidden shadow-xl">
-                <div className="p-6 border-b border-gray-700">
-                    <h2 className="text-xl font-semibold flex items-center space-x-2">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
-                        </svg>
-                        <span>User Management</span>
-                        <span className="text-sm text-gray-400">({users.length} users)</span>
-                    </h2>
-                </div>
-
-                <div className="overflow-x-auto">
-                    {loading && users.length === 0 ? (
-                        <div className="p-8">
-                            <div className="animate-pulse space-y-4">
-                                {[...Array(5)].map((_, i) => (
-                                    <div key={i} className="h-16 bg-gray-700 rounded"></div>
-                                ))}
-                            </div>
-                        </div>
+                <button
+                    onClick={handleResetDB}
+                    disabled={resetDBLoading}
+                    className="bg-red-600 hover:bg-red-700 disabled:bg-red-700 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                >
+                    {resetDBLoading ? (
+                        <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            <span>Updating...</span>
+                        </>
                     ) : (
-                        <table className="w-full">
-                            <thead>
-                                <tr className="bg-gray-700 text-left">
-                                    <th className="p-4 font-semibold text-sm">Name</th>
-                                    <th className="p-4 font-semibold text-sm">Email</th>
-                                    <th className="p-4 font-semibold text-sm">Balance</th>
-                                    <th className="p-4 font-semibold text-sm">Realized P&L</th>
-                                    <th className="p-4 font-semibold text-sm">Unrealized P&L</th>
-                                    <th className="p-4 font-semibold text-sm">Total Stocks</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-700">
-                                {users.length === 0 ? (
-                                    <tr>
-                                        <td colSpan="6" className="p-8 text-center text-gray-400">
-                                            {loading ? 'Loading users...' : 'No users found'}
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    users.map((user, index) => (
-                                        <tr key={index} className="hover:bg-gray-700/50 transition-colors">
-                                            <td className="p-4">
-                                                <div className="font-medium text-white">{user.name}</div>
-                                            </td>
-                                            <td className="p-4">
-                                                <div className="text-gray-300 text-sm">{user.email}</div>
-                                            </td>
-                                            <td className="p-4">
-                                                <div className="font-medium text-white">
-                                                    {formatCurrency(user.balance)}
-                                                </div>
-                                            </td>
-                                            <td className="p-4">
-                                                <div className={`font-medium ${getPnlColor(user.realized_pnl)}`}>
-                                                    {formatCurrency(user.realized_pnl)}
-                                                </div>
-                                            </td>
-                                            <td className="p-4">
-                                                <div className={`font-medium ${getPnlColor(user.unrealized_pnl)}`}>
-                                                    {formatCurrency(user.unrealized_pnl)}
-                                                </div>
-                                            </td>
-                                            <td className="p-4">
-                                                <div className="font-medium text-white">
-                                                    {user.totalStocks.toLocaleString()}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
+                        <>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            <span className="hidden sm:inline">Reset DB</span>
+                            <span className="sm:hidden">Reset DB</span>
+                        </>
                     )}
+                </button>
+            </div>
+
+            {/* Tab Navigation */}
+            <div className="mb-6">
+                <div className="flex space-x-1 bg-gray-800 rounded-lg p-1">
+                    <button
+                        onClick={() => setActiveTab('users')}
+                        className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${activeTab === 'users'
+                            ? 'bg-blue-500 text-white'
+                            : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                            }`}
+                    >
+                        Users ({users.length})
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('orders')}
+                        className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${activeTab === 'orders'
+                            ? 'bg-blue-500 text-white'
+                            : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                            }`}
+                    >
+                        Orders ({orders.length})
+                    </button>
                 </div>
             </div>
+
+            {/* Data Table */}
+            {activeTab === 'users' ? (
+                <DataTable
+                    data={users}
+                    columns={userColumns}
+                    loading={loading}
+                    emptyMessage="No users found"
+                    tableTitle="User Management"
+                    totalCount={users.length}
+                />
+            ) : (
+                <DataTable
+                    data={orders}
+                    columns={orderColumns}
+                    loading={loading}
+                    emptyMessage="No orders found"
+                    tableTitle="Order History"
+                    totalCount={orders.length}
+                />
+            )}
         </div>
     );
 }

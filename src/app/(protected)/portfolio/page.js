@@ -75,7 +75,7 @@ export default function Portfolio() {
                 <div className="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700">
                     <h2 className="text-lg font-semibold text-gray-300 mb-2">Available Balance</h2>
                     <p className="text-3xl font-bold text-emerald-400">
-                        ₹{summary.availableBalance.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                        {session.user.role === 'admin' ? 'Unlimited' : `₹${summary.availableBalance.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`}
                     </p>
                 </div>
                 {/* <div className="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700">
@@ -93,7 +93,7 @@ export default function Portfolio() {
                     <h2 className="text-lg font-semibold text-gray-300 mb-2">Total P&L</h2>
                     <div>
                         <p className={`text-3xl font-bold ${summary.realizedPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            ₹{summary.realizedPnL.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                            {session.user.role === 'admin' ? 'NA' : `₹{summary.realizedPnL.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`}
                         </p>
                         {/* <p className={`text-lg ${summary.totalPnLPercentage >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                             {summary.realizedPnLPerce.toFixed(2)}%
