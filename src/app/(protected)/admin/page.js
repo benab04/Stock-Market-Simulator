@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { signOut, useSession } from 'next-auth/react';
-import { convertToCSV, convertOrdersToCSV, formatCurrency, getPnlColor } from '@/lib/helper';
+import { convertToCSV, convertOrdersToCSV, formatCurrency, getPnlColor, formatDate } from '@/lib/helper';
 import DataTable from '@/components/DataTable';
 
 function AdminPage() {
@@ -409,7 +409,14 @@ function AdminPage() {
             header: 'Date',
             render: (order) => (
                 <div className="text-gray-300 text-sm">
-                    {order.timestamp ? new Date(order.timestamp).toLocaleDateString('en-GB') : 'N/A'}
+                    {order.timestamp ? <div className="flex flex-col">
+                        <span className="text-sm">
+                            {formatDate(order.timestamp, 'DD/MM/YYYY')}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                            {formatDate(order.timestamp, 'hh:mm:ss A')}
+                        </span>
+                    </div> : 'N/A'}
                 </div>
             )
         }

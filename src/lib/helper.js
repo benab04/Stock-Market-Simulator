@@ -1,3 +1,5 @@
+import moment from 'moment-timezone';
+
 // Helper function to convert JSON to CSV
 export const convertToCSV = (data) => {
     if (!data || data.length === 0) return '';
@@ -102,4 +104,14 @@ export const getPnlColor = (pnl) => {
     if (value > 0) return 'text-green-500';
     if (value < 0) return 'text-red-500';
     return 'text-gray-400';
+};
+
+
+export const formatDate = (timestamp, format = 'DD/MM/YYYY') => {
+    if (!timestamp) return 'Invalid Date';
+
+    // Convert to Asia/Kolkata timezone and format date only
+    return moment(timestamp)
+        .tz('Asia/Kolkata')
+        .format(format);
 };
