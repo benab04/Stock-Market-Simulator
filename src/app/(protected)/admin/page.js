@@ -28,19 +28,19 @@ function AdminPage() {
         setMounted(true);
     }, []);
 
-    // Auto-refresh data every 5 minutes
-    useEffect(() => {
-        if (isAuthenticated) {
-            const interval = setInterval(() => {
-                console.log('Auto-refreshing data...');
-                fetchUsers();
-                fetchOrders();
-                fetchMarketStatus();
-            }, 5 * 60 * 1000); // 5 minutes
+    // // Auto-refresh data every 5 minutes
+    // useEffect(() => {
+    //     if (isAuthenticated) {
+    //         const interval = setInterval(() => {
+    //             console.log('Auto-refreshing data...');
+    //             fetchUsers();
+    //             fetchOrders();
+    //             fetchMarketStatus();
+    //         }, 5 * 60 * 1000); // 5 minutes
 
-            return () => clearInterval(interval);
-        }
-    }, [isAuthenticated]);
+    //         return () => clearInterval(interval);
+    //     }
+    // }, [isAuthenticated]);
 
     const handleSignOut = async () => {
         await signOut({ callbackUrl: '/login' });
