@@ -9,7 +9,7 @@ export default function DataTable({ data, columns, loading, emptyMessage, tableT
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
                     </svg>
                     <span>{tableTitle}</span>
-                    <span className="text-sm text-gray-400">({totalCount} {tableTitle.toLowerCase()})</span>
+                    <span className="text-sm text-gray-400">({totalCount})</span>
                 </h2>
             </div>
 
