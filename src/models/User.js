@@ -33,7 +33,12 @@ const userSchema = new mongoose.Schema({
     portfolio: [portfolioSchema],
     balance: {
         type: Number,
-        default: 100000 // Starting balance of ₹100,000
+        default: 500000000 // Starting balance of ₹100,000
+    },
+    realizedPnL: {
+        type: Number,
+        default: 0,
+        required: true
     },
     createdAt: {
         type: Date,
@@ -43,6 +48,15 @@ const userSchema = new mongoose.Schema({
         type: String,
         enum: ['ACTIVE', 'INACTIVE'],
         default: 'ACTIVE'
+    },
+    avatarId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Avatar',
+    },
+    role: {
+        type: String,
+        enum: ['admin', 'user'],
+        default: 'user'
     }
 }, {
     timestamps: true

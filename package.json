@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "seed": "node scripts/seedStocks.mjs"
+    "seed": "node scripts/seedStocks.mjs",
+    "avatars": "node scripts/seedAvatars.mjs"
   },
   "dependencies": {
     "@upstash/redis": "^1.35.0",

@@ -10,7 +10,7 @@ export async function POST(req) {
         const REGISTER_ALLOWED = process.env.REGISTER_ALLOWED || 'true';
 
         const body = await req.json();
-        const { name, email, password } = body;
+        const { name, email, password, avatarId } = body;
 
         // Check if user already exists
         const existingUser = await User.findOne({ email });
@@ -35,7 +35,8 @@ export async function POST(req) {
             name,
             email,
             password,
-            balance: 100000, // Starting balance ₹100,000
+            avatarId,
+            balance: 500000000, // Starting balance ₹50,00,00,000
             portfolio: []
         });
 
@@ -44,7 +45,8 @@ export async function POST(req) {
             id: user._id,
             name: user.name,
             email: user.email,
-            balance: user.balance
+            balance: user.balance,
+            avatarId: user.avatarId,
         };
 
         return new Response(

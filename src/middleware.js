@@ -16,6 +16,8 @@ export default withAuth(
 export const config = {
     matcher: [
         "/dashboard/:path*",
+        "/admin",
+        "/api/admin/:path*",
         // "/api/stockData",
         "/api/stockHistory",
         "/api/orders/:path*",

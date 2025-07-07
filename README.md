@@ -1,5 +1,11 @@
 # Stock Trading Simulator
 
+## Architecture
+
+![High Level Architecture view](./High%20Level%20Architecture.png)
+
+_Figure 1: High level architecture view showcasing different layers._
+
 This is a real-time stock trading simulator built with Next.js, featuring live candlestick charts, real-time price updates, portfolio tracking, and simulated trading.
 
 ## Features
@@ -11,6 +17,9 @@ This is a real-time stock trading simulator built with Next.js, featuring live c
 - Persistent sessions and token management
 
 ### 2. Real-time Trading Dashboard
+
+![Trading Dashboard](./Dashboard%20view.png)
+_Figure 2: Real-time trading dashboard with live candlestick charts and trading form._
 
 - Live candlestick charts with multiple timeframes
 - Real-time price updates via Server-Sent Events (SSE)

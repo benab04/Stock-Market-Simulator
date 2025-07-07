@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-import moment from 'moment-timezone';
+import { formatDate } from '@/lib/helper';
 
 // Custom hook for debouncing
 function useDebounce(value, delay) {
@@ -153,23 +153,8 @@ function OrdersPage() {
             : 'bg-red-500/10 text-red-500';
     };
 
-    const formatDateTime = (timestamp) => {
-        if (!timestamp) return 'Invalid Date';
 
-        // Convert to Asia/Kolkata timezone and format
-        return moment(timestamp)
-            .tz('Asia/Kolkata')
-            .format('DD/MM/YYYY hh:mm A');
-    };
 
-    const formatDate = (timestamp) => {
-        if (!timestamp) return 'Invalid Date';
-
-        // Convert to Asia/Kolkata timezone and format date only
-        return moment(timestamp)
-            .tz('Asia/Kolkata')
-            .format('DD/MM/YYYY');
-    };
 
     // Don't render anything until mounted (prevents SSR issues)
     if (!mounted) {
@@ -295,10 +280,10 @@ function OrdersPage() {
                                     <td className="p-4">
                                         <div className="flex flex-col">
                                             <span className="text-sm">
-                                                {formatDate(order.timestamp)}
+                                                {formatDate(order.timestamp, 'DD/MM/YYYY')}
                                             </span>
                                             <span className="text-xs text-gray-400">
-                                                {moment(order.timestamp).tz('Asia/Kolkata').format('hh:mm A')}
+                                                {formatDate(order.timestamp, 'hh:mm:ss A')}
                                             </span>
                                         </div>
                                     </td>

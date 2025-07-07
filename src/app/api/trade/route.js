@@ -3,6 +3,7 @@ import dbConnect from '@/lib/db';
 import Order from '@/models/Order';
 import Stock from '@/models/Stock';
 import User from '@/models/User';
+import Market from '@/models/Market';
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -12,8 +13,17 @@ export const POST = withAuth(async (req) => {
     try {
         await dbConnect();
 
+        const market = await Market.findOne({});
+
         const { stockSymbol, quantity, type } = await req.json();
         const userId = req.ctx.user.id;
+
+        if (req.ctx.user.role !== 'admin' && !market.status) {
+            return new Response(
+                JSON.stringify({ error: 'Market is closed' }),
+                { status: 403 }
+            );
+        }
 
         // Validate request
         if (!stockSymbol || !quantity || !type) {
@@ -53,26 +63,28 @@ export const POST = withAuth(async (req) => {
         const orderCost = stock.currentPrice * quantity;
 
         // Validate trade
-        if (type === 'BUY') {
-            if (user.balance < orderCost) {
-                user.status = 'INACTIVE';
-                await user.save();
-                return new Response(
-                    JSON.stringify({ error: 'Insufficient balance. You have been disqualified. Please contact admin.' }),
-                    { status: 400 }
-                );
-            }
-        } else if (type === 'SELL') {
-            const portfolio = user.portfolio.find(p => p.stockSymbol === stockSymbol);
-            if (!portfolio || portfolio.quantity < quantity) {
-                return new Response(
-                    JSON.stringify({ error: 'Insufficient shares' }),
-                    { status: 400 }
-                );
+        if (!req.ctx.user.role || req.ctx.user.role === 'user') {
+            if (type === 'BUY') {
+                if (user.balance < orderCost) {
+                    user.status = 'INACTIVE';
+                    await user.save();
+                    return new Response(
+                        JSON.stringify({ error: 'Insufficient balance. You have been disqualified. Please contact admin.' }),
+                        { status: 400 }
+                    );
+                }
+            } else if (type === 'SELL') {
+                const portfolio = user.portfolio.find(p => p.stockSymbol === stockSymbol);
+                if (!portfolio || portfolio.quantity < quantity) {
+                    return new Response(
+                        JSON.stringify({ error: 'Insufficient shares' }),
+                        { status: 400 }
+                    );
+                }
             }
         }
 
-        // Create order and update user in parallel
+        // Create order
         const orderPromise = Order.create({
             stockId: stock._id,
             userId,
@@ -85,7 +97,9 @@ export const POST = withAuth(async (req) => {
 
         // Update user portfolio and balance
         if (type === 'BUY') {
-            user.balance -= orderCost;
+            if (!req.ctx.user.role || req.ctx.user.role === 'user') {
+                user.balance -= orderCost;
+            }
 
             const portfolioIndex = user.portfolio.findIndex(p => p.stockSymbol === stockSymbol);
             if (portfolioIndex === -1) {
@@ -106,10 +120,28 @@ export const POST = withAuth(async (req) => {
                 user.portfolio[portfolioIndex].buyPrice = stock.currentPrice;
             }
         } else {
-            user.balance += orderCost;
+            if (!req.ctx.user.role || req.ctx.user.role === 'user') {
+                user.balance += orderCost;
+            }
 
             const portfolioIndex = user.portfolio.findIndex(p => p.stockSymbol === stockSymbol);
             const currentHolding = user.portfolio[portfolioIndex];
+
+            if (!req.ctx.user.role || req.ctx.user.role === 'user') {
+                // Initialize realizedPnL if it doesn't exist
+                if (!user.realizedPnL) {
+                    user.realizedPnL = 0;
+                }
+                // Calculate and add the realized PnL for this sell transaction
+                const realizedGainLoss = (stock.currentPrice - currentHolding.averagePrice) * quantity;
+                console.log(`Real ${realizedGainLoss}`);
+
+                user.realizedPnL += realizedGainLoss;
+
+                // Mark the field as modified to ensure it gets saved
+                user.markModified('realizedPnL');
+            }
+
             if (currentHolding.quantity === quantity) {
                 user.portfolio.splice(portfolioIndex, 1);
             } else {
