@@ -1,0 +1,133 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36" version="26.2.12">
+  <diagram name="Page-1" id="iHzuc94a7bIdpqyQLQes">
+    <mxGraphModel dx="1491" dy="803" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-121" value="&lt;b&gt;&lt;font face=&quot;Verdana&quot;&gt;Hosting Platform&lt;/font&gt;&lt;/b&gt;" style="ellipse;shape=cloud;whiteSpace=wrap;html=1;fillColor=#D5E8D4;" vertex="1" parent="1">
+          <mxGeometry x="850" y="180" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-63" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#CCE5FF;" vertex="1" parent="1">
+          <mxGeometry x="100" y="510" width="720" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-70" value="Services Layer" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontFamily=Verdana;" vertex="1" parent="1">
+          <mxGeometry x="103" y="511" width="160" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-94" value="&lt;b&gt;Market Engine&lt;/b&gt;&lt;div&gt;&lt;font style=&quot;font-size: 10px;&quot;&gt;Extract recent orders to decide new price&lt;/font&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#CCFFE6;" vertex="1" parent="1">
+          <mxGeometry x="306" y="555" width="136" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-95" value="&lt;font style=&quot;font-size: 12px;&quot;&gt;&lt;b style=&quot;&quot;&gt;Candlestick Aggregator&lt;/b&gt;&lt;/font&gt;&lt;div&gt;&lt;font style=&quot;font-size: 10px;&quot;&gt;Create or update candles as per new price&lt;/font&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#CCFFE6;" vertex="1" parent="1">
+          <mxGeometry x="480" y="555" width="136" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-91" value="" style="group;fillColor=#CCFFE6;container=0;" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="650" y="555" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-62" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E5CCFF;" vertex="1" parent="1">
+          <mxGeometry x="100" y="370" width="720" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-69" value="Backend Layer (NextJS)" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontFamily=Verdana;" vertex="1" parent="1">
+          <mxGeometry x="104" y="371" width="186" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-84" value="&lt;b&gt;Live Stock Streaming&lt;/b&gt;&lt;div&gt;&lt;font size=&quot;1&quot;&gt;SSE or Upstash Redis&lt;/font&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFB570;" vertex="1" parent="1">
+          <mxGeometry x="130" y="410" width="136" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-87" value="&lt;b&gt;Middleware&lt;/b&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFB570;" vertex="1" parent="1">
+          <mxGeometry x="302" y="410" width="136" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-86" value="&lt;b&gt;JWT Authentication&lt;/b&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFB570;" vertex="1" parent="1">
+          <mxGeometry x="480" y="410" width="136" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-83" value="&lt;b&gt;APIs&lt;/b&gt;&lt;div&gt;/api/*&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFB570;" vertex="1" parent="1">
+          <mxGeometry x="648" y="410" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-61" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#A680B8;" vertex="1" parent="1">
+          <mxGeometry x="100" y="230" width="720" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-68" value="Frontend Layer (NextJS)" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontFamily=Verdana;" vertex="1" parent="1">
+          <mxGeometry x="103" y="231" width="177" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-76" value="&lt;b&gt;Dashboard&lt;/b&gt;&lt;div&gt;&lt;font style=&quot;font-size: 10px;&quot;&gt;Trade Form, Candlestick charts&lt;/font&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#D4E1F5;" vertex="1" parent="1">
+          <mxGeometry x="130" y="270" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-77" value="&lt;b&gt;Portfolio&lt;/b&gt;&lt;div&gt;&lt;font style=&quot;font-size: 10px;&quot;&gt;Holdings, PnL&lt;/font&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#D4E1F5;" vertex="1" parent="1">
+          <mxGeometry x="304" y="270" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-78" value="&lt;b&gt;Orders&lt;/b&gt;&lt;div&gt;&lt;font style=&quot;font-size: 10px;&quot;&gt;Order history&lt;/font&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#D4E1F5;" vertex="1" parent="1">
+          <mxGeometry x="480" y="270" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-79" value="&lt;b&gt;Admin Dashboard&lt;/b&gt;&lt;div&gt;&lt;font style=&quot;font-size: 10px;&quot;&gt;User &amp;amp; order data, reset DB, start/stop market&lt;/font&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#D4E1F5;" vertex="1" parent="1">
+          <mxGeometry x="650" y="270" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-71" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E6E6E6;" vertex="1" parent="1">
+          <mxGeometry x="99.9972531214529" y="650" width="719.182746878547" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-72" value="Data Layer" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontFamily=Verdana;" vertex="1" parent="1">
+          <mxGeometry x="102.18" y="651" width="130.76049943246312" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-109" value="&lt;b&gt;MongoDB&lt;/b&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#99FF99;" vertex="1" parent="1">
+          <mxGeometry x="269.18" y="665" width="149.61" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-110" value="&lt;ul&gt;&lt;li&gt;&lt;font style=&quot;font-size: 10px;&quot;&gt;&lt;b&gt;Market Master&lt;/b&gt;&lt;/font&gt;&lt;/li&gt;&lt;li&gt;&lt;font style=&quot;font-size: 10px;&quot;&gt;&lt;b&gt;Users&lt;/b&gt;&lt;/font&gt;&lt;/li&gt;&lt;li&gt;&lt;font style=&quot;font-size: 10px;&quot;&gt;&lt;b&gt;Stocks&lt;/b&gt;&lt;/font&gt;&lt;/li&gt;&lt;li&gt;&lt;font style=&quot;font-size: 10px;&quot;&gt;&lt;b&gt;Orders&lt;/b&gt;&lt;/font&gt;&lt;/li&gt;&lt;li&gt;&lt;font style=&quot;font-size: 10px;&quot;&gt;&lt;b&gt;Avatars&lt;/b&gt;&lt;/font&gt;&lt;/li&gt;&lt;/ul&gt;" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="459.79" y="662.5" width="119.59" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-114" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://upload.wikimedia.org/wikipedia/commons/0/00/Mongodb.png;" vertex="1" parent="1">
+          <mxGeometry x="708.18" y="651" width="100" height="33.33" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-115" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://www.svgrepo.com/show/354113/nextjs-icon.svg;" vertex="1" parent="1">
+          <mxGeometry x="790" y="240" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-116" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://www.svgrepo.com/show/354113/nextjs-icon.svg;" vertex="1" parent="1">
+          <mxGeometry x="790" y="380" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-118" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://www.svgrepo.com/show/354113/nextjs-icon.svg;" vertex="1" parent="1">
+          <mxGeometry x="790" y="520" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-60" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E1D5E7;" vertex="1" parent="1">
+          <mxGeometry x="100" y="150" width="720" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-67" value="NextJS Auth Layer" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontFamily=Verdana;" vertex="1" parent="1">
+          <mxGeometry x="103" y="151" width="130.9090909090909" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-80" value="&lt;b&gt;Login / Register&lt;/b&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#CCE5FF;" vertex="1" parent="1">
+          <mxGeometry x="270" y="160" width="125" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-73" value="&lt;b&gt;NextJS Session Provider&lt;/b&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#CCE5FF;" vertex="1" parent="1">
+          <mxGeometry x="420" y="160" width="125" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-75" value="&lt;ul&gt;&lt;li&gt;&lt;b&gt;Email&lt;/b&gt;&lt;/li&gt;&lt;li&gt;&lt;b&gt;Role&lt;/b&gt;&lt;/li&gt;&lt;li&gt;&lt;b&gt;Token&lt;/b&gt;&lt;/li&gt;&lt;/ul&gt;" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="530" y="160" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-117" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://www.svgrepo.com/show/354113/nextjs-icon.svg;" vertex="1" parent="1">
+          <mxGeometry x="790" y="160" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-119" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://georgian.io/wp-content/uploads/2025/01/Render-Logo-for-Companies-Page.png;" vertex="1" parent="1">
+          <mxGeometry x="919.46" y="230" width="81.08" height="34.6" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-125" value="&lt;b&gt;&lt;font face=&quot;Verdana&quot;&gt;URL Provider&lt;/font&gt;&lt;/b&gt;" style="ellipse;shape=cloud;whiteSpace=wrap;html=1;fillColor=#D5E8D4;" vertex="1" parent="1">
+          <mxGeometry x="850" y="420" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-126" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://1000logos.net/wp-content/uploads/2023/01/Godaddy-logo.png;" vertex="1" parent="1">
+          <mxGeometry x="919.46" y="470" width="81.08" height="34.6" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-130" value="&lt;b&gt;&lt;font face=&quot;Verdana&quot;&gt;DNS Provider&lt;/font&gt;&lt;/b&gt;" style="ellipse;shape=cloud;whiteSpace=wrap;html=1;fillColor=#D5E8D4;" vertex="1" parent="1">
+          <mxGeometry x="850" y="291" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-131" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Cloudflare_Logo.svg/2560px-Cloudflare_Logo.svg.png;" vertex="1" parent="1">
+          <mxGeometry x="940" y="349.77" width="60.54" height="25.83" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-134" value="&lt;font style=&quot;font-size: 12px;&quot;&gt;&lt;b style=&quot;&quot;&gt;Background Worker&lt;/b&gt;&lt;/font&gt;&lt;div&gt;&lt;font style=&quot;font-size: 10px;&quot;&gt;Calculate stock prices every 30 seconds&lt;/font&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#CCFFE6;" vertex="1" parent="1">
+          <mxGeometry x="129" y="555" width="136" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-90" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#CCFFE6;" vertex="1" parent="1">
+          <mxGeometry x="650" y="555" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-81" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://upstash.com/logo/upstash-white-bg.png;" vertex="1" parent="1">
+          <mxGeometry x="678.96" y="561.27" width="82.09" height="23.73" as="geometry" />
+        </mxCell>
+        <mxCell id="ckjLgbegrsCgD_Uwbawi-96" value="&lt;font style=&quot;font-size: 10px;&quot;&gt;Optional Layer to handle ~10000 users&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="660" y="585" width="120" height="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
