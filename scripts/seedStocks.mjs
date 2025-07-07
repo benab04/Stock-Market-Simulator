@@ -101,7 +101,8 @@ if (process.env.MONGODB_URI) {
 }
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/stocksimulator';
-const CLEAR_DATABASE = process.env.CLEAR_DATABASE || false;
+const CLEAR_DATABASE = process.env.CLEAR_DATABASE === 'true' || false;
+const SEED_INITIAL_VALUES = process.env.SEED_INITIAL_VALUES === 'true' || false;
 
 const stocks = [
     {
@@ -246,295 +247,206 @@ const stocks = [
     }
 ];
 
+// Function to generate realistic candlestick data
+function generateCandlestickData(stock, timeframe, numberOfCandles) {
+    const candles = [];
+    const currentTime = new Date();
 
-// const stocks = [
-//     {
-//         symbol: 'ABINFD',
-//         name: 'Abhinava InfoTech',
-//         sector: 'IT Services',
-//         currentPrice: 1750,
-//         riskLevel: 'Low',
-//         description: 'Large-cap IT services leader, stable EPS, bluechip favorite.',
-//         circuitLimit: 5,
-//         volatilityFactor: 50,
-//         priceHistory: [],
-//         candles_5min: [],
-//         candles_30min: [],
-//         candles_2hour: []
-//     },
-//     {
-//         symbol: 'TECHST',
-//         name: 'TechStar Solutions',
-//         sector: 'Technology',
-//         currentPrice: 850,
-//         riskLevel: 'Medium',
-//         description: 'Mid-cap technology solutions provider with growing market share.',
-//         circuitLimit: 7,
-//         volatilityFactor: 30,
-//         priceHistory: [],
-//         candles_5min: [],
-//         candles_30min: [],
-//         candles_2hour: []
-//     },
-//     {
-//         symbol: 'QSTART',
-//         name: 'Quantum Startups',
-//         sector: 'Technology',
-//         currentPrice: 250,
-//         riskLevel: 'High',
-//         description: 'Small-cap quantum computing startup with high growth potential.',
-//         circuitLimit: 10,
-//         volatilityFactor: 100,
-//         priceHistory: [],
-//         candles_5min: [],
-//         candles_30min: [],
-//         candles_2hour: []
-//     },
-//     {
-//         symbol: 'RELPOW',
-//         name: 'Reliance Power Corp',
-//         sector: 'Energy',
-//         currentPrice: 2450,
-//         riskLevel: 'Low',
-//         description: 'Dominant energy conglomerate with diversified power generation portfolio.',
-//         circuitLimit: 5,
-//         volatilityFactor: 45,
-//         priceHistory: [],
-//         candles_5min: [],
-//         candles_30min: [],
-//         candles_2hour: []
-//     },
-//     {
-//         symbol: 'MEDIPL',
-//         name: 'MediPlus Healthcare',
-//         sector: 'Healthcare',
-//         currentPrice: 1200,
-//         riskLevel: 'Medium',
-//         description: 'Leading pharmaceutical company with strong R&D capabilities.',
-//         circuitLimit: 6,
-//         volatilityFactor: 35,
-//         priceHistory: [],
-//         candles_5min: [],
-//         candles_30min: [],
-//         candles_2hour: []
-//     },
-//     {
-//         symbol: 'BANKOR',
-//         name: 'Bankor Financial',
-//         sector: 'Banking',
-//         currentPrice: 3200,
-//         riskLevel: 'Low',
-//         description: 'Premier private sector bank with robust digital banking services.',
-//         circuitLimit: 4,
-//         volatilityFactor: 40,
-//         priceHistory: [],
-//         candles_5min: [],
-//         candles_30min: [],
-//         candles_2hour: []
-//     },
-//     {
-//         symbol: 'SOLREN',
-//         name: 'Solar Renaissance',
-//         sector: 'Renewable Energy',
-//         currentPrice: 680,
-//         riskLevel: 'Medium',
-//         description: 'Mid-cap solar energy company riding the green transition wave.',
-//         circuitLimit: 8,
-//         volatilityFactor: 60,
-//         priceHistory: [],
-//         candles_5min: [],
-//         candles_30min: [],
-//         candles_2hour: []
-//     },
-//     {
-//         symbol: 'FOODCH',
-//         name: 'FoodChain Industries',
-//         sector: 'FMCG',
-//         currentPrice: 1500,
-//         riskLevel: 'Low',
-//         description: 'Established FMCG giant with strong brand portfolio and distribution network.',
-//         circuitLimit: 5,
-//         volatilityFactor: 25,
-//         priceHistory: [],
-//         candles_5min: [],
-//         candles_30min: [],
-//         candles_2hour: []
-//     },
-//     {
-//         symbol: 'AUTODR',
-//         name: 'AutoDrive Motors',
-//         sector: 'Automotive',
-//         currentPrice: 950,
-//         riskLevel: 'Medium',
-//         description: 'Automotive manufacturer focusing on electric and autonomous vehicles.',
-//         circuitLimit: 7,
-//         volatilityFactor: 55,
-//         priceHistory: [],
-//         candles_5min: [],
-//         candles_30min: [],
-//         candles_2hour: []
-//     },
-//     {
-//         symbol: 'STEELX',
-//         name: 'SteelX Corporation',
-//         sector: 'Steel & Metal',
-//         currentPrice: 1850,
-//         riskLevel: 'Medium',
-//         description: 'Large-cap steel producer with integrated operations and export focus.',
-//         circuitLimit: 6,
-//         volatilityFactor: 70,
-//         priceHistory: [],
-//         candles_5min: [],
-//         candles_30min: [],
-//         candles_2hour: []
-//     },
-//     {
-//         symbol: 'FINEXP',
-//         name: 'FinExpress Services',
-//         sector: 'Financial Services',
-//         currentPrice: 420,
-//         riskLevel: 'High',
-//         description: 'Emerging fintech company offering digital lending and payment solutions.',
-//         circuitLimit: 10,
-//         volatilityFactor: 90,
-//         priceHistory: [],
-//         candles_5min: [],
-//         candles_30min: [],
-//         candles_2hour: []
-//     },
-//     {
-//         symbol: 'TEXTIL',
-//         name: 'Textile Masters Ltd',
-//         sector: 'Textiles',
-//         currentPrice: 340,
-//         riskLevel: 'Medium',
-//         description: 'Mid-cap textile manufacturer with strong export credentials.',
-//         circuitLimit: 8,
-//         volatilityFactor: 45,
-//         priceHistory: [],
-//         candles_5min: [],
-//         candles_30min: [],
-//         candles_2hour: []
-//     },
-//     {
-//         symbol: 'PHARMO',
-//         name: 'PharmaOmega Research',
-//         sector: 'Pharmaceuticals',
-//         currentPrice: 2100,
-//         riskLevel: 'Low',
-//         description: 'Blue-chip pharmaceutical company with global presence and patent portfolio.',
-//         circuitLimit: 5,
-//         volatilityFactor: 35,
-//         priceHistory: [],
-//         candles_5min: [],
-//         candles_30min: [],
-//         candles_2hour: []
-//     },
-//     {
-//         symbol: 'BIOTER',
-//         name: 'BioTerra Sciences',
-//         sector: 'Biotechnology',
-//         currentPrice: 180,
-//         riskLevel: 'High',
-//         description: 'Small-cap biotech firm developing breakthrough gene therapy treatments.',
-//         circuitLimit: 12,
-//         volatilityFactor: 120,
-//         priceHistory: [],
-//         candles_5min: [],
-//         candles_30min: [],
-//         candles_2hour: []
-//     },
-//     {
-//         symbol: 'REALST',
-//         name: 'RealEstate Titans',
-//         sector: 'Real Estate',
-//         currentPrice: 1320,
-//         riskLevel: 'Medium',
-//         description: 'Large real estate developer with premium residential and commercial projects.',
-//         circuitLimit: 6,
-//         volatilityFactor: 50,
-//         priceHistory: [],
-//         candles_5min: [],
-//         candles_30min: [],
-//         candles_2hour: []
-//     },
-//     {
-//         symbol: 'RETAILX',
-//         name: 'RetailX Supermart',
-//         sector: 'Retail',
-//         currentPrice: 780,
-//         riskLevel: 'Medium',
-//         description: 'Multi-format retail chain with strong omnichannel presence.',
-//         circuitLimit: 7,
-//         volatilityFactor: 40,
-//         priceHistory: [],
-//         candles_5min: [],
-//         candles_30min: [],
-//         candles_2hour: []
-//     },
-//     {
-//         symbol: 'CEMCON',
-//         name: 'Cement Consolidated',
-//         sector: 'Cement',
-//         currentPrice: 2800,
-//         riskLevel: 'Low',
-//         description: 'Market leading cement manufacturer with pan-India presence.',
-//         circuitLimit: 4,
-//         volatilityFactor: 30,
-//         priceHistory: [],
-//         candles_5min: [],
-//         candles_30min: [],
-//         candles_2hour: []
-//     },
-//     {
-//         symbol: 'AGRITECH',
-//         name: 'AgriTech Innovations',
-//         sector: 'Agriculture',
-//         currentPrice: 520,
-//         riskLevel: 'High',
-//         description: 'Agricultural technology startup focused on precision farming solutions.',
-//         circuitLimit: 10,
-//         volatilityFactor: 85,
-//         priceHistory: [],
-//         candles_5min: [],
-//         candles_30min: [],
-//         candles_2hour: []
-//     },
-//     {
-//         symbol: 'LOGIST',
-//         name: 'Logistics Pro',
-//         sector: 'Logistics',
-//         currentPrice: 890,
-//         riskLevel: 'Medium',
-//         description: 'Integrated logistics service provider with tech-enabled supply chain solutions.',
-//         circuitLimit: 7,
-//         volatilityFactor: 55,
-//         priceHistory: [],
-//         candles_5min: [],
-//         candles_30min: [],
-//         candles_2hour: []
-//     },
-//     {
-//         symbol: 'MINPOW',
-//         name: 'Mineral Power Corp',
-//         sector: 'Mining',
-//         currentPrice: 1650,
-//         riskLevel: 'Medium',
-//         description: 'Diversified mining company with coal, iron ore and precious metals operations.',
-//         circuitLimit: 6,
-//         volatilityFactor: 75,
-//         priceHistory: [],
-//         candles_5min: [],
-//         candles_30min: [],
-//         candles_2hour: []
-//     }
-// ];
+    // Define time intervals in milliseconds
+    const timeIntervals = {
+        '5min': 5 * 60 * 1000,
+        '30min': 30 * 60 * 1000,
+        '2hour': 2 * 60 * 60 * 1000
+    };
+
+    const interval = timeIntervals[timeframe];
+
+    // Calculate volatility based on risk level and volatility factor
+    const baseVolatility = stock.volatilityFactor / 10000; // Convert to percentage
+    let volatilityMultiplier = 1;
+
+    switch (stock.riskLevel) {
+        case 'Low':
+            volatilityMultiplier = 0.8;
+            break;
+        case 'Medium':
+            volatilityMultiplier = 1.2;
+            break;
+        case 'High':
+            volatilityMultiplier = 2.0;
+            break;
+    }
+
+    const volatility = baseVolatility * volatilityMultiplier;
+
+    // Start from a more variable price range
+    let currentPrice = stock.currentPrice * (0.7 + Math.random() * 0.6); // Start 70-130% of current price
+
+    // Market phases for more realistic movement
+    const phases = ['bullish', 'bearish', 'sideways', 'volatile'];
+    let currentPhase = phases[Math.floor(Math.random() * phases.length)];
+    let phaseCounter = 0;
+    const phaseLength = Math.floor(Math.random() * 20) + 10; // Phase lasts 10-30 candles
+
+    // Generate candles going backwards in time
+    for (let i = numberOfCandles - 1; i >= 0; i--) {
+        const startTime = new Date(currentTime.getTime() - (i + 1) * interval);
+        const endTime = new Date(currentTime.getTime() - i * interval);
+
+        // Change market phase periodically
+        if (phaseCounter >= phaseLength) {
+            currentPhase = phases[Math.floor(Math.random() * phases.length)];
+            phaseCounter = 0;
+        }
+        phaseCounter++;
+
+        // Generate realistic OHLC values
+        const open = currentPrice;
+
+        // Apply phase-based movement
+        let phaseBias = 0;
+        let phaseVolatilityMultiplier = 1;
+
+        switch (currentPhase) {
+            case 'bullish':
+                phaseBias = volatility * 0.3; // Slight upward bias
+                phaseVolatilityMultiplier = 0.8;
+                break;
+            case 'bearish':
+                phaseBias = -volatility * 0.3; // Slight downward bias
+                phaseVolatilityMultiplier = 0.8;
+                break;
+            case 'sideways':
+                phaseBias = 0;
+                phaseVolatilityMultiplier = 0.6;
+                break;
+            case 'volatile':
+                phaseBias = (Math.random() - 0.5) * volatility * 0.5;
+                phaseVolatilityMultiplier = 1.8;
+                break;
+        }
+
+        // Generate random price movement
+        const randomMovement = (Math.random() - 0.5) * 2 * volatility * open * phaseVolatilityMultiplier;
+        const biasedMovement = phaseBias * open;
+
+        // Add some mean reversion towards a reasonable range
+        const distanceFromTarget = (stock.currentPrice - open) / stock.currentPrice;
+        const meanReversion = distanceFromTarget * 0.05 * open;
+
+        const close = Math.max(
+            open + randomMovement + biasedMovement + meanReversion,
+            open * 0.85 // Prevent drops more than 15%
+        );
+
+        // Generate more realistic high and low
+        const volatilityRange = volatility * open * phaseVolatilityMultiplier;
+
+        // High and low should represent the extremes during the period
+        const maxOfOpenClose = Math.max(open, close);
+        const minOfOpenClose = Math.min(open, close);
+
+        // Generate high with more realistic range
+        const highExtension = Math.random() * volatilityRange * 0.8; // Up to 80% of volatility range
+        const high = maxOfOpenClose + highExtension;
+
+        // Generate low with more realistic range
+        const lowExtension = Math.random() * volatilityRange * 0.8; // Up to 80% of volatility range
+        const low = Math.max(minOfOpenClose - lowExtension, minOfOpenClose * 0.95); // Don't go below 95% of min
+
+        // Ensure high is actually higher than low (safety check)
+        const finalHigh = Math.max(high, low + open * 0.001); // At least 0.1% difference
+        const finalLow = Math.min(low, finalHigh - open * 0.001);
+
+        // Generate realistic volume based on timeframe and volatility
+        let baseVolume;
+        switch (timeframe) {
+            case '5min':
+                baseVolume = Math.floor(Math.random() * 15000) + 2000;
+                break;
+            case '30min':
+                baseVolume = Math.floor(Math.random() * 80000) + 10000;
+                break;
+            case '2hour':
+                baseVolume = Math.floor(Math.random() * 400000) + 50000;
+                break;
+        }
+
+        // Higher volatility and larger price movements = higher volume
+        const priceChange = Math.abs(close - open) / open;
+        const volumeMultiplier = 1 + priceChange * 3; // Volume increases with price movement
+        const volume = Math.floor(baseVolume * volumeMultiplier);
+
+        candles.push({
+            startTime,
+            endTime,
+            open: Math.round(open * 100) / 100,
+            high: Math.round(finalHigh * 100) / 100,
+            low: Math.round(finalLow * 100) / 100,
+            close: Math.round(close * 100) / 100,
+            volume
+        });
+
+        // Update current price for next iteration
+        currentPrice = close;
+    }
+
+    return candles;
+}
+
+
+// Function to generate price history data
+function generatePriceHistory(stock, candles5min) {
+    const priceHistory = [];
+
+    // Generate price history from 5-minute candles
+    candles5min.forEach(candle => {
+        // Add multiple price points within each 5-minute candle
+        const ticksPerCandle = 5;
+
+        for (let i = 0; i < ticksPerCandle; i++) {
+            const timestamp = new Date(candle.startTime.getTime() + i * 60 * 1000);
+            let price;
+
+            if (i === 0) {
+                price = candle.open;
+            } else if (i === ticksPerCandle - 1) {
+                price = candle.close;
+            } else {
+                // Create realistic price movement within the candle
+                const progress = i / (ticksPerCandle - 1);
+
+                // Use a more complex interpolation
+                const basePrice = candle.open + (candle.close - candle.open) * progress;
+
+                // Add some randomness within the high-low range
+                const range = candle.high - candle.low;
+                const randomFactor = (Math.random() - 0.5) * 0.6; // ±30% of range
+                const variation = range * randomFactor;
+
+                price = basePrice + variation;
+
+                // Ensure price stays within candle bounds
+                price = Math.max(candle.low, Math.min(candle.high, price));
+            }
+
+            priceHistory.push({
+                timestamp,
+                price: Math.round(price * 100) / 100
+            });
+        }
+    });
+
+    return priceHistory;
+}
 
 async function seedDatabase() {
     try {
         console.log('Connecting to MongoDB...');
         await mongoose.connect(MONGODB_URI);
         console.log('Connected to MongoDB successfully');
+
+        console.log(`SEED_INITIAL_VALUES: ${SEED_INITIAL_VALUES}`);
 
         if (CLEAR_DATABASE) {
             // Clear entire database if flag is set to true
@@ -548,7 +460,11 @@ async function seedDatabase() {
             console.log(`Seeded ${result.length} stocks successfully`);
 
             // Initialize price history for all stocks
-            await initializePriceHistoryForStocks(result);
+            if (SEED_INITIAL_VALUES) {
+                await initializePriceHistoryWithInitialValues(result);
+            } else {
+                await initializePriceHistoryForStocks(result);
+            }
         } else {
             // Check for existing stocks and only add new ones
             console.log('CLEAR_DATABASE is false - Checking for existing stocks...');
@@ -569,35 +485,14 @@ async function seedDatabase() {
                 console.log(`Seeded ${result.length} new stocks successfully`);
 
                 // Initialize price history only for new stocks
-                await initializePriceHistoryForStocks(result);
+                if (SEED_INITIAL_VALUES) {
+                    await initializePriceHistoryWithInitialValues(result);
+                } else {
+                    await initializePriceHistoryForStocks(result);
+                }
             } else {
                 console.log('No new stocks to add - all stocks already exist in database');
             }
-
-            // Optionally update existing stocks (uncomment if you want to update existing stock data)
-            /*
-            if (existingSymbols.length > 0) {
-                console.log('Updating existing stocks...');
-                for (const stock of stocks) {
-                    if (existingSymbols.includes(stock.symbol)) {
-                        await Stock.findOneAndUpdate(
-                            { symbol: stock.symbol },
-                            {
-                                name: stock.name,
-                                sector: stock.sector,
-                                currentPrice: stock.currentPrice,
-                                riskLevel: stock.riskLevel,
-                                description: stock.description,
-                                circuitLimit: stock.circuitLimit,
-                                volatilityFactor: stock.volatilityFactor,
-                                lastUpdated: new Date()
-                            }
-                        );
-                    }
-                }
-                console.log('Updated existing stocks');
-            }
-            */
         }
 
         await mongoose.disconnect();
@@ -610,9 +505,50 @@ async function seedDatabase() {
     }
 }
 
-// Helper function to initialize price history and candles for stocks
+// Helper function to initialize price history and candles for stocks with initial values
+async function initializePriceHistoryWithInitialValues(stocksToInitialize) {
+    console.log('Initializing price history with 500 candles for each timeframe...');
+    const currentTime = new Date();
+
+    for (const stock of stocksToInitialize) {
+        console.log(`Generating realistic data for ${stock.symbol}...`);
+
+        // Generate 500 candles for each timeframe using the improved function
+        const candles5min = generateCandlestickData(stock, '5min', 500);
+        const candles30min = generateCandlestickData(stock, '30min', 500);
+        const candles2hour = generateCandlestickData(stock, '2hour', 500);
+
+        // Generate price history from 5-minute candles
+        const priceHistory = generatePriceHistory(stock, candles5min);
+
+        // Calculate the timestamps for last candles
+        const lastCandle5min = candles5min[candles5min.length - 1].endTime;
+        const lastCandle30min = candles30min[candles30min.length - 1].endTime;
+        const lastCandle2hour = candles2hour[candles2hour.length - 1].endTime;
+
+        // Update the stock with generated data
+        await Stock.findByIdAndUpdate(stock._id, {
+            $set: {
+                priceHistory: priceHistory,
+                candles_5min: candles5min,
+                candles_30min: candles30min,
+                candles_2hour: candles2hour,
+                lastCandle_5min: lastCandle5min,
+                lastCandle_30min: lastCandle30min,
+                lastCandle_2hour: lastCandle2hour,
+                lastUpdated: currentTime
+            }
+        });
+
+        console.log(`✓ Generated realistic data for ${stock.symbol}: ${priceHistory.length} price points, ${candles5min.length} 5min candles, ${candles30min.length} 30min candles, ${candles2hour.length} 2hour candles`);
+    }
+
+    console.log(`Initialized comprehensive price history and candles for ${stocksToInitialize.length} stocks`);
+}
+
+// Helper function to initialize price history and candles for stocks (minimal)
 async function initializePriceHistoryForStocks(stocksToInitialize) {
-    console.log('Initializing price history...');
+    console.log('Initializing basic price history...');
     const currentTime = new Date();
 
     for (const stock of stocksToInitialize) {
@@ -654,7 +590,8 @@ async function initializePriceHistoryForStocks(stocksToInitialize) {
             }
         });
     }
-    console.log(`Initialized price history and candles for ${stocksToInitialize.length} stocks`);
+    console.log(`Initialized basic price history and candles for ${stocksToInitialize.length} stocks`);
 }
+
 // Run the seeding function
 seedDatabase();
