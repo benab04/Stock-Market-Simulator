@@ -105,7 +105,7 @@ The portfolio page implements real-time updates through:
 
 #### Avatar Model
 
-- Store an avatar in base64 format for profile photo of users
+- Stores avatars in base64 format for profile photo of users
 
 ## Performance Considerations
 
