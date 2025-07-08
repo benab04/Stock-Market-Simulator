@@ -98,6 +98,15 @@ The portfolio page implements real-time updates through:
 - Maintains current price and metadata
 - Optimized for high-frequency price updates
 
+#### Market Model
+
+- Market Master stores current status of market (open/close)
+- Stores list of admins
+
+#### Avatar Model
+
+- Store an avatar in base64 format for profile photo of users
+
 ## Performance Considerations
 
 ### API Optimization
