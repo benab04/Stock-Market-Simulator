@@ -145,9 +145,25 @@ npm install
 3. Set up environment variables:
 
 ```env
-DATABASE_URL=your_mongodb_url
-NEXTAUTH_SECRET=your_secret
-NEXTAUTH_URL=http://localhost:3000
+# Application
+MONGODB_URI=your_mongodb_uri
+NEXTAUTH_SECRET=your_nextjs_secret_key
+NEXTAUTH_URL=your_deployed_url OR http://localhost:3000 (dev)
+UPSTASH_REDIS_REST_URL=upstash_url
+UPSTASH_REDIS_REST_TOKEN=upstash_redis_token
+NEXT_PUBLIC_STOCK_UPDATE_ROUTE =/api/stockData  OR /api/stockData/upstash
+NEXT_PUBLIC_AVATAR_ALLOWED=true/false
+ADMIN_SECRET=your_admin_secret_key
+CONTINUOUS_ENGINE=true/false
+REGISTER_ALLOWED=true/false
+
+# Database seeding
+CLEAR_DATABASE=true/false
+SEED_INITIAL_VALUES=true/false
+
+# Analytics
+GOOGLE_ANALYTICS_ID=your_analytics_id
+
 ```
 
 4. Seed initial stock data:
