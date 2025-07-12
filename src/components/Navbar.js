@@ -14,6 +14,11 @@ export default function Navbar() {
     const [avatarError, setAvatarError] = useState(false);
 
     const handleSignOut = async () => {
+        try {
+            localStorage.removeItem(`avatar_${session.user.email}`); // Clear cached avatar on sign out
+        } catch (error) {
+            console.error('Error clearing avatar from localStorage:', error);
+        }
         await signOut({ callbackUrl: '/' });
     };
 
