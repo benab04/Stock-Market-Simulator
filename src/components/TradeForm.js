@@ -179,7 +179,7 @@ export default function TradeForm({ stock, onTrade }) {
                 <div className="mb-4 bg-gray-800/30 rounded-lg p-3 border border-gray-700/30">
                     <div className="flex justify-between items-center mb-3">
                         <span className="text-xs font-medium text-gray-400 uppercase tracking-wide font-semibold">Balance</span>
-                        <span className="text-xs text-blue-400 font-medium font-semibold">{session.user.role === 'admin' ? 'Unlimited' : `₹ ${balance?.toFixed(2).toLocaleString() || '0.00'}`}</span>
+                        <span className="text-xs text-blue-400 font-medium font-semibold">{session.user.role === 'admin' ? 'Unlimited' : `₹ ${Number(balance?.toFixed(2)).toLocaleString('en-IN') || '0.00'}`}</span>
                     </div>
                 </div>
             )}
@@ -202,7 +202,7 @@ export default function TradeForm({ stock, onTrade }) {
                 <div className="mb-4 bg-gray-800/30 rounded-lg p-3 border border-gray-700/30">
                     <div className="flex justify-between items-center mb-3">
                         <span className="text-xs font-medium text-gray-400 uppercase tracking-wide font-semibold">Holdings</span>
-                        <span className="text-xs text-blue-400 font-medium font-semibold">{holdings.quantity} shares</span>
+                        <span className="text-xs text-blue-400 font-medium font-semibold">{Number(holdings.quantity).toLocaleString('en-IN')} shares</span>
                     </div>
 
                     <div className="bg-gray-900/40 rounded-lg p-2 border border-gray-700/20">
@@ -211,7 +211,7 @@ export default function TradeForm({ stock, onTrade }) {
                             <div className={`flex items-center space-x-1 ${holdings.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                 <PnLArrow pnl={holdings.pnl} />
                                 <span className="text-sm font-semibold">
-                                    ₹{Math.abs(holdings.pnl).toFixed(2)}
+                                    ₹{Number(Math.abs(holdings.pnl).toFixed(2)).toLocaleString('en-IN')}
                                 </span>
                                 <span className="text-xs">
                                     ({Math.abs(holdings.pnlPercentage).toFixed(2)}%)
