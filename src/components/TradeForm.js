@@ -222,7 +222,7 @@ export default function TradeForm({ stock, onTrade }) {
                             <span className="text-xs text-gray-400"></span>
                             <div className={`flex items-center space-x-1 ${holdings.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                 <span className="text-xs">
-                                    ₹{holdings.currentValue.toLocaleString()}
+                                    ₹{Number(holdings.currentValue).toLocaleString('en-IN')}
                                 </span>
                             </div>
                         </div>
