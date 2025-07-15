@@ -253,7 +253,7 @@ export default function TradeForm({ stock, onTrade }) {
                                 {successAlert.type === 'BUY' ? 'Buy' : 'Sell'} Order Placed!
                             </div>
                             <div className="text-xs text-green-400 mt-1">
-                                {successAlert.quantity} shares for ₹{successAlert.totalValue}
+                                {Number(successAlert.quantity).toLocaleString('en-IN')} shares for ₹{Number(successAlert.totalValue).toLocaleString('en-IN')}
                             </div>
                         </div>
                         <button
@@ -311,7 +311,7 @@ export default function TradeForm({ stock, onTrade }) {
                     </div>
                     <div className="flex justify-between items-center">
                         <span className="text-gray-400 text-sm">Total Value</span>
-                        <span className="text-base font-semibold text-blue-400">₹{totalValue}</span>
+                        <span className="text-base font-semibold text-blue-400">₹{Number(totalValue).toLocaleString('en-IN')}</span>
                     </div>
                 </div>
 
