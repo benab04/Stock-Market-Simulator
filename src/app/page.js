@@ -100,7 +100,7 @@ export default function Home() {
               </div>
               <h3 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4 text-white group-hover:text-cyan-400 transition-colors duration-300">Portfolio Management</h3>
               <p className="text-sm sm:text-base text-gray-300 group-hover:text-gray-200 transition-colors duration-300 leading-relaxed">
-                Track investments, analyze performance metrics, and optimize your virtual portfolio with advanced tools.
+                Track investments, analyze performance metrics, and optimize your virtual portfolio.
               </p>
             </div>
           </div>
@@ -114,10 +114,10 @@ export default function Home() {
               Ready to Master Trading?
             </h2>
             <p className="text-base sm:text-lg lg:text-xl text-gray-400 mb-6 sm:mb-8 max-w-sm sm:max-w-xl lg:max-w-2xl mx-auto leading-relaxed">
-              Join thousands of traders who have honed their skills in our realistic trading environment
+              Join hundreds of traders sharpening their edge in this competitive trading arena
             </p>
             <Link
-              href="/register"
+              href="/dashboard"
               className="inline-flex items-center gap-2 sm:gap-3 bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 hover:from-blue-500 hover:via-purple-500 hover:to-cyan-500 text-white px-8 sm:px-10 lg:px-12 py-3 sm:py-4 rounded-2xl font-bold text-base sm:text-lg transition-all duration-300 transform hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/25"
             >
               Start Trading Now

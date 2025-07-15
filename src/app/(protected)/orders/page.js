@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-import { formatDate } from '@/lib/helper';
+import { commafy, formatDate } from '@/lib/helper';
 
 // Custom hook for debouncing
 function useDebounce(value, delay) {
@@ -293,9 +293,9 @@ function OrdersPage() {
                                             {order.type.toUpperCase()}
                                         </span>
                                     </td>
-                                    <td className="p-4">{order.quantity.toLocaleString()}</td>
-                                    <td className="p-4">₹{order.price.toFixed(2)}</td>
-                                    <td className="p-4">₹{order.total.toFixed(2)}</td>
+                                    <td className="p-4">{commafy(order.quantity, 0)}</td>
+                                    <td className="p-4">{commafy(order.price, 2, 'INR')}</td>
+                                    <td className="p-4">{commafy(order.total, 2, 'INR')}</td>
                                     <td className="p-4">
                                         <span className={getStatusColor(order.status)}>
                                             {order.status.toUpperCase()}

@@ -115,3 +115,33 @@ export const formatDate = (timestamp, format = 'DD/MM/YYYY') => {
         .tz('Asia/Kolkata')
         .format(format);
 };
+
+
+export const commafy = (
+    num,
+    decimals = 2,
+    currency = null,
+    locale = 'en-IN',
+    reverse = false
+) => {
+    if (reverse && typeof num === 'string') {
+        const cleaned = num.replace(/,/g, '');
+        const parsed = parseFloat(cleaned);
+        return isNaN(parsed) ? 0 : parsed;
+    }
+
+    if (isNaN(num)) return '0.00';
+
+    const options = {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: decimals,
+    };
+
+    if (currency) {
+        options.style = 'currency';
+        options.currency = currency;
+    }
+
+    return new Intl.NumberFormat(locale, options).format(Number(num));
+};
+
