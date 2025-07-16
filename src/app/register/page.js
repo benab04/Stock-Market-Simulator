@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 
 // Configuration switch
-const AVATAR_ALLOWED = process.env.NEXT_PUBLIC_AVATAR_ALLOWED === 'true' || true; // Set to false to use original implementation
+const AVATAR_ALLOWED = process.env.NEXT_PUBLIC_AVATAR_ALLOWED === 'true' || false; // Set to false to use original implementation
 
 export default function Register() {
     const router = useRouter();
