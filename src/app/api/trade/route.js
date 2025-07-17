@@ -99,55 +99,58 @@ export const POST = withAuth(async (req) => {
         if (type === 'BUY') {
             if (!req.ctx.user.role || req.ctx.user.role === 'user') {
                 user.balance -= orderCost;
+
+                const portfolioIndex = user.portfolio.findIndex(p => p.stockSymbol === stockSymbol);
+                if (portfolioIndex === -1) {
+                    user.portfolio.push({
+                        stockSymbol,
+                        quantity,
+                        averagePrice: stock.currentPrice,
+                        buyPrice: stock.currentPrice,
+                        investedValue: orderCost,
+                    });
+                } else {
+                    const currentHolding = user.portfolio[portfolioIndex];
+                    const totalShares = currentHolding.quantity + quantity;
+                    const totalCost = (currentHolding.quantity * currentHolding.averagePrice) + orderCost;
+                    user.portfolio[portfolioIndex].quantity = totalShares;
+                    user.portfolio[portfolioIndex].investedValue = currentHolding.investedValue ? currentHolding.investedValue + orderCost : totalCost;
+                    user.portfolio[portfolioIndex].averagePrice = totalCost / totalShares;
+                    user.portfolio[portfolioIndex].buyPrice = stock.currentPrice;
+                }
             }
 
-            const portfolioIndex = user.portfolio.findIndex(p => p.stockSymbol === stockSymbol);
-            if (portfolioIndex === -1) {
-                user.portfolio.push({
-                    stockSymbol,
-                    quantity,
-                    averagePrice: stock.currentPrice,
-                    buyPrice: stock.currentPrice,
-                    investedValue: orderCost,
-                });
-            } else {
-                const currentHolding = user.portfolio[portfolioIndex];
-                const totalShares = currentHolding.quantity + quantity;
-                const totalCost = (currentHolding.quantity * currentHolding.averagePrice) + orderCost;
-                user.portfolio[portfolioIndex].quantity = totalShares;
-                user.portfolio[portfolioIndex].investedValue = currentHolding.investedValue ? currentHolding.investedValue + orderCost : totalCost;
-                user.portfolio[portfolioIndex].averagePrice = totalCost / totalShares;
-                user.portfolio[portfolioIndex].buyPrice = stock.currentPrice;
-            }
         } else {
             if (!req.ctx.user.role || req.ctx.user.role === 'user') {
                 user.balance += orderCost;
-            }
 
-            const portfolioIndex = user.portfolio.findIndex(p => p.stockSymbol === stockSymbol);
-            const currentHolding = user.portfolio[portfolioIndex];
+                const portfolioIndex = user.portfolio.findIndex(p => p.stockSymbol === stockSymbol);
+                const currentHolding = user.portfolio[portfolioIndex];
 
-            if (!req.ctx.user.role || req.ctx.user.role === 'user') {
-                // Initialize realizedPnL if it doesn't exist
-                if (!user.realizedPnL) {
-                    user.realizedPnL = 0;
+                if (!req.ctx.user.role || req.ctx.user.role === 'user') {
+                    // Initialize realizedPnL if it doesn't exist
+                    if (!user.realizedPnL) {
+                        user.realizedPnL = 0;
+                    }
+                    // Calculate and add the realized PnL for this sell transaction
+                    const realizedGainLoss = (stock.currentPrice - currentHolding.averagePrice) * quantity;
+                    console.log(`Real ${realizedGainLoss}`);
+
+                    user.realizedPnL += realizedGainLoss;
+
+                    // Mark the field as modified to ensure it gets saved
+                    user.markModified('realizedPnL');
                 }
-                // Calculate and add the realized PnL for this sell transaction
-                const realizedGainLoss = (stock.currentPrice - currentHolding.averagePrice) * quantity;
-                console.log(`Real ${realizedGainLoss}`);
 
-                user.realizedPnL += realizedGainLoss;
-
-                // Mark the field as modified to ensure it gets saved
-                user.markModified('realizedPnL');
+                if (currentHolding.quantity === quantity) {
+                    user.portfolio.splice(portfolioIndex, 1);
+                } else {
+                    user.portfolio[portfolioIndex].quantity -= quantity;
+                    user.portfolio[portfolioIndex].investedValue -= currentHolding.investedValue ? orderCost : currentHolding.averagePrice * quantity;
+                }
             }
 
-            if (currentHolding.quantity === quantity) {
-                user.portfolio.splice(portfolioIndex, 1);
-            } else {
-                user.portfolio[portfolioIndex].quantity -= quantity;
-                user.portfolio[portfolioIndex].investedValue -= currentHolding.investedValue ? orderCost : currentHolding.averagePrice * quantity;
-            }
+
         }
 
         // Execute both operations in parallel

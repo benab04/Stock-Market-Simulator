@@ -199,6 +199,18 @@ export default function TradeForm({ stock, onTrade }) {
                         </div>
                     </div>
                 </div>
+            ) : session?.user?.role === 'admin' ? (
+                <div className="mb-4 bg-gray-800/20 rounded-lg p-3 border border-gray-700/20">
+                    <div className="flex items-center justify-center">
+                        <div className="text-center">
+                            <svg className="w-8 h-8 text-gray-600 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                            </svg>
+                            <p className="text-xs text-gray-500">No Limit on Holdings</p>
+                            <p className="text-xs text-gray-500">Buy or Sell Without Restrictions</p>
+                        </div>
+                    </div>
+                </div>
             ) : holdings ? (
                 <div className="mb-4 bg-gray-800/30 rounded-lg p-3 border border-gray-700/30">
                     <div className="flex justify-between items-center mb-3">
