@@ -4,8 +4,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { signOut, useSession } from 'next-auth/react';
 import { convertToCSV, convertOrdersToCSV, formatCurrency, getPnlColor, formatDate } from '@/lib/helper';
 import DataTable from '@/components/DataTable';
+import { useRouter } from 'next/navigation';
 
 function AdminPage() {
+    const router = useRouter();
+
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [adminSecret, setAdminSecret] = useState('');
     const [users, setUsers] = useState([]);
@@ -611,24 +614,14 @@ function AdminPage() {
                     )}
                 </button>
                 <button
-                    onClick={handleResetDB}
-                    disabled={resetDBLoading}
-                    className="bg-red-600 hover:bg-red-700 disabled:bg-red-700 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                    onClick={() => router.push('/admin/db')}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
                 >
-                    {resetDBLoading ? (
-                        <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                            <span>Updating...</span>
-                        </>
-                    ) : (
-                        <>
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                            <span className="hidden sm:inline">Reset DB</span>
-                            <span className="sm:hidden">Reset DB</span>
-                        </>
-                    )}
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                    </svg>
+                    <span className="hidden sm:inline">Manage DB</span>
+                    <span className="sm:hidden">Manage DB</span>
                 </button>
             </div>
 
