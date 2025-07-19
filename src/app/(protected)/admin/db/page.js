@@ -335,32 +335,33 @@ export default function AdminDBPage() {
     };
 
     const downloadTemplate = (type) => {
-        if (type === 'users') {
-            // Create users template
-            const data = [
-                ['Email', 'First Name', 'Last Name'],
-                ['john.doe@example.com', 'John', 'Doe'],
-                ['jane.smith@example.com', 'Jane', 'Smith']
-            ];
+        // if (type === 'users') {
+        //     // Create users template
+        //     const data = [
+        //         ['Email', 'First Name', 'Last Name'],
+        //         ['john.doe@example.com', 'John', 'Doe'],
+        //         ['jane.smith@example.com', 'Jane', 'Smith']
+        //     ];
 
-            // Create a simple CSV content for download
-            const csvContent = data.map(row => row.join(',')).join('\n');
-            const blob = new Blob([csvContent], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'users_template.csv';
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-        } else {
-            // For stocks, use existing template logic
-            const templates = {
-                stocks: '/templates/stocks_template.xlsx'
-            };
-            window.open(templates[type], '_blank');
-        }
+        //     // Create a simple CSV content for download
+        //     const csvContent = data.map(row => row.join(',')).join('\n');
+        //     const blob = new Blob([csvContent], { type: 'text/csv' });
+        //     const url = window.URL.createObjectURL(blob);
+        //     const a = document.createElement('a');
+        //     a.href = url;
+        //     a.download = 'users_template.csv';
+        //     document.body.appendChild(a);
+        //     a.click();
+        //     window.URL.revokeObjectURL(url);
+        //     document.body.removeChild(a);
+        // } else {
+        // For stocks, use existing template logic
+        const templates = {
+            stocks: '/templates/stocks_template.xlsx',
+            users: '/templates/users_template.xlsx'
+        };
+        window.open(templates[type], '_blank');
+        // }
     };
 
     const renderUploadSection = (type, title, color) => (

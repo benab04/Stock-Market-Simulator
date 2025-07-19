@@ -1,6 +1,6 @@
 import { withAuth } from '@/lib/auth';
 import User from '@/models/User';
-import Market from '@/models/Market';
+import Stock from '@/models/Stock';
 import dbConnect from '@/lib/db';
 import * as XLSX from 'xlsx';
 import dotenv from 'dotenv';
@@ -34,6 +34,72 @@ function createExcelFile(userData) {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Users');
     return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+}
+
+// Function to validate and get stock information
+async function validateStock(stockSymbol) {
+    if (!stockSymbol || stockSymbol.trim() === '') {
+        return null;
+    }
+
+    try {
+        const stock = await Stock.findOne({ symbol: stockSymbol.trim().toUpperCase() });
+        return stock;
+    } catch (error) {
+        console.error(`Error validating stock ${stockSymbol}:`, error);
+        return null;
+    }
+}
+
+// Function to update user portfolio
+async function updateUserPortfolio(user, stockSymbol, sharesHeld) {
+    try {
+        const stock = await validateStock(stockSymbol);
+        if (!stock) {
+            return { success: false, error: `Invalid stock symbol: ${stockSymbol}` };
+        }
+
+        const quantity = parseInt(sharesHeld);
+        if (isNaN(quantity) || quantity <= 0) {
+            return { success: false, error: `Invalid shares quantity: ${sharesHeld}` };
+        }
+
+        // Check if user already has this stock in portfolio
+        const existingHoldingIndex = user.portfolio.findIndex(
+            holding => holding.stockSymbol.toLowerCase() === stock.symbol.toLowerCase()
+        );
+
+        const investedValue = stock.currentPrice * quantity;
+
+        if (existingHoldingIndex >= 0) {
+            // Update existing holding
+            const existingHolding = user.portfolio[existingHoldingIndex];
+            const totalQuantity = existingHolding.quantity + quantity;
+            const totalInvestedValue = existingHolding.investedValue + investedValue;
+            const newAveragePrice = totalInvestedValue / totalQuantity;
+
+            user.portfolio[existingHoldingIndex] = {
+                stockSymbol: stock.symbol,
+                quantity: totalQuantity,
+                averagePrice: newAveragePrice,
+                buyPrice: newAveragePrice,
+                investedValue: totalInvestedValue
+            };
+        } else {
+            // Add new holding
+            user.portfolio.push({
+                stockSymbol: stock.symbol,
+                quantity: quantity,
+                averagePrice: stock.currentPrice,
+                buyPrice: stock.currentPrice,
+                investedValue: investedValue
+            });
+        }
+
+        return { success: true, stock: stock.symbol, quantity };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
 }
 
 export const POST = withAuth(async (req) => {
@@ -123,45 +189,85 @@ export const POST = withAuth(async (req) => {
                 }
 
                 // Check if user already exists
-                const existingUser = await User.findOne({ email: row.Email.toLowerCase() });
-                if (existingUser) {
-                    errors.push(`Row ${i + 1}: User with email ${row.Email} already exists`);
+                let existingUser = await User.findOne({ email: row.Email.toLowerCase() });
+                let password;
+                let isNewUser = false;
+
+                if (existingUser && !clearDatabase) {
+                    // User exists and we're not clearing database
+                    // We'll use the existing user and update their portfolio if needed
+                    password = "*** EXISTING USER ***"; // Placeholder for display
+                } else if (existingUser && clearDatabase) {
+                    // This shouldn't happen since we cleared the database, but handle it just in case
+                    errors.push(`Row ${i + 1}: User with email ${row.Email} already exists after database clear`);
                     continue;
+                } else {
+                    // Create new user
+                    password = generatePassword();
+                    isNewUser = true;
+
+                    existingUser = new User({
+                        name: `${row['Name']}`.trim(),
+                        email: row.Email.toLowerCase(),
+                        password: password, // This will be hashed by the pre-save middleware
+                        role: 'user',
+                        status: 'ACTIVE',
+                        portfolio: []
+                    });
                 }
 
-                // Generate password
-                const password = generatePassword();
+                // Handle portfolio updates if Key Investor and Shares Held fields exist
+                const portfolioUpdates = [];
+                if (row['Key Investor'] && row['Shares Held']) {
+                    const portfolioResult = await updateUserPortfolio(
+                        existingUser,
+                        row['Key Investor'],
+                        row['Shares Held']
+                    );
 
-                // Create user
-                const user = new User({
-                    name: `${row['Name']}`.trim(),
-                    email: row.Email.toLowerCase(),
-                    password: password, // This will be hashed by the pre-save middleware
-                    role: 'user',
-                    status: 'ACTIVE'
-                });
+                    if (portfolioResult.success) {
+                        portfolioUpdates.push(`${portfolioResult.stock}: ${portfolioResult.quantity} shares`);
+                    } else {
+                        errors.push(`Row ${i + 1}: Portfolio update failed - ${portfolioResult.error}`);
+                    }
+                }
 
-                await user.save();
+                // Save the user (new or updated)
+                await existingUser.save();
 
-                // Add to results for Excel file
-                results.push({
+                // Prepare result for Excel file
+                const resultRow = {
                     Email: row.Email,
                     'Name': row['Name'],
-                    Password: password
-                });
+                    Password: password,
+                    Status: isNewUser ? 'NEW USER' : 'EXISTING USER UPDATED',
+                };
 
-                console.log(`User created: ${user.email}`);
+                // Add portfolio information if available
+                if (row['Key Investor']) {
+                    resultRow['Key Investor'] = row['Key Investor'];
+                }
+                if (row['Shares Held']) {
+                    resultRow['Shares Held'] = row['Shares Held'];
+                }
+                if (portfolioUpdates.length > 0) {
+                    resultRow['Portfolio Updates'] = portfolioUpdates.join('; ');
+                }
+
+                results.push(resultRow);
+
+                console.log(`${isNewUser ? 'User created' : 'User updated'}: ${existingUser.email}${portfolioUpdates.length > 0 ? ` - Portfolio: ${portfolioUpdates.join('; ')}` : ''}`);
 
             } catch (error) {
-                console.error(`Error creating user for row ${i + 1}:`, error);
-                errors.push(`Row ${i + 1}: Failed to create user - ${error.message}`);
+                console.error(`Error processing user for row ${i + 1}:`, error);
+                errors.push(`Row ${i + 1}: Failed to process user - ${error.message}`);
             }
         }
 
         if (results.length === 0) {
             return new Response(
                 JSON.stringify({
-                    error: 'No users were created successfully',
+                    error: 'No users were processed successfully',
                     details: errors
                 }),
                 { status: 400, headers: { 'Content-Type': 'application/json' } }
@@ -182,8 +288,8 @@ export const POST = withAuth(async (req) => {
         });
 
         // Log summary
-        console.log(`Bulk user creation completed:`);
-        console.log(`- Successfully created: ${results.length} users`);
+        console.log(`Bulk user processing completed:`);
+        console.log(`- Successfully processed: ${results.length} users`);
         console.log(`- Errors: ${errors.length}`);
         if (errors.length > 0) {
             console.log('Errors:', errors);
