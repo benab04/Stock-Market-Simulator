@@ -35,17 +35,14 @@ export default function Dashboard() {
 
     function retryUpdateChart(symbol, attempt = 1) {
         if (!svgRef.current) {
-            if (attempt <= 3) {
-                console.warn(`SVG not found, retrying updateChart for ${symbol} (attempt ${attempt})`);
-                setTimeout(() => retryUpdateChart(symbol, attempt + 1), 500);
-            } else {
-                console.error(`Failed to render chart for ${symbol} after 3 attempts.`);
-            }
+            console.warn(`SVG not found, retrying updateChart for ${symbol} (attempt ${attempt})`);
+            setTimeout(() => retryUpdateChart(symbol, attempt + 1), 500);
             return;
         }
         console.log(`Rendering chart for ${symbol} after ${attempt} attempt(s)`);
         updateChart(symbol);
     }
+
     useEffect(() => {
         if (selectedStock && dataRef.current[selectedStock]?.length) {
             retryUpdateChart(selectedStock);
