@@ -516,6 +516,7 @@ export default function Dashboard() {
 
     const updateChartData = (symbol, newData) => {
         if (!svgRef.current || !scaleRef.current.xScale) {
+            retryUpdateChart(symbol)
             console.log('UpdateChartData called but requirements not met');
             return;
         }
