@@ -49,7 +49,7 @@ export default function Home() {
             </div>
             <div className="flex items-center justify-center gap-2">
               <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-              <span className="whitespace-nowrap">₹1,00,000 Starting Capital</span>
+              <span className="whitespace-nowrap">₹50,00,00,000 Starting Capital</span>
             </div>
             <div className="flex items-center justify-center gap-2">
               <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
@@ -85,7 +85,7 @@ export default function Home() {
               </div>
               <h3 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4 text-white group-hover:text-purple-400 transition-colors duration-300">Risk-Free Learning</h3>
               <p className="text-sm sm:text-base text-gray-300 group-hover:text-gray-200 transition-colors duration-300 leading-relaxed">
-                Start with ₹1,00,000 virtual capital and master trading strategies without risking your real money.
+                Start with ₹50,00,00,000 virtual capital and master trading strategies without risking your real money.
               </p>
             </div>
           </div>
