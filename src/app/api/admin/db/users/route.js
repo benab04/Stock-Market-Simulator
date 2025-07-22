@@ -8,6 +8,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const ADMIN_SECRET = process.env.ADMIN_SECRET;
+const DEFAULT_BALANCE = 500000000; // 50 Cr starting balance
 
 // Function to generate a random password
 function generatePassword(length = 12) {
@@ -51,8 +52,8 @@ async function validateStock(stockSymbol) {
     }
 }
 
-// Function to update user portfolio
-async function updateUserPortfolio(user, stockSymbol, sharesHeld) {
+// Function to update user portfolio and calculate balance
+async function updateUserPortfolioWithBalance(user, stockSymbol, sharesHeld) {
     try {
         const stock = await validateStock(stockSymbol);
         if (!stock) {
@@ -64,12 +65,20 @@ async function updateUserPortfolio(user, stockSymbol, sharesHeld) {
             return { success: false, error: `Invalid shares quantity: ${sharesHeld}` };
         }
 
+        const investedValue = stock.currentPrice * quantity;
+
+        // Check if user has sufficient balance
+        if (user.balance < investedValue) {
+            return {
+                success: false,
+                error: `Insufficient balance. Required: ₹${investedValue.toLocaleString('en-IN')}, Available: ₹${user.balance.toLocaleString('en-IN')}`
+            };
+        }
+
         // Check if user already has this stock in portfolio
         const existingHoldingIndex = user.portfolio.findIndex(
             holding => holding.stockSymbol.toLowerCase() === stock.symbol.toLowerCase()
         );
-
-        const investedValue = stock.currentPrice * quantity;
 
         if (existingHoldingIndex >= 0) {
             // Update existing holding
@@ -96,7 +105,16 @@ async function updateUserPortfolio(user, stockSymbol, sharesHeld) {
             });
         }
 
-        return { success: true, stock: stock.symbol, quantity };
+        // Deduct the invested amount from balance
+        user.balance -= investedValue;
+
+        return {
+            success: true,
+            stock: stock.symbol,
+            quantity,
+            investedValue,
+            remainingBalance: user.balance
+        };
     } catch (error) {
         return { success: false, error: error.message };
     }
@@ -185,6 +203,16 @@ export const POST = withAuth(async (req) => {
                 const emailRegex = /^\S+@\S+\.\S+$/;
                 if (!emailRegex.test(row.Email)) {
                     errors.push(`Row ${i + 1}: Invalid email format - ${row.Email}`);
+
+                    // Add to results with error
+                    results.push({
+                        Email: row.Email,
+                        'Name': row['Name'],
+                        Password: 'N/A',
+                        Status: 'FAILED',
+                        Error: 'Invalid email format',
+                        'Final Balance': 'N/A'
+                    });
                     continue;
                 }
 
@@ -199,10 +227,20 @@ export const POST = withAuth(async (req) => {
                     password = "*** EXISTING USER ***"; // Placeholder for display
                 } else if (existingUser && clearDatabase) {
                     // This shouldn't happen since we cleared the database, but handle it just in case
-                    errors.push(`Row ${i + 1}: User with email ${row.Email} already exists after database clear`);
+                    const errorMsg = `User with email ${row.Email} already exists after database clear`;
+                    errors.push(`Row ${i + 1}: ${errorMsg}`);
+
+                    results.push({
+                        Email: row.Email,
+                        'Name': row['Name'],
+                        Password: 'N/A',
+                        Status: 'FAILED',
+                        Error: errorMsg,
+                        'Final Balance': 'N/A'
+                    });
                     continue;
                 } else {
-                    // Create new user
+                    // Create new user with default balance
                     password = generatePassword();
                     isNewUser = true;
 
@@ -212,55 +250,88 @@ export const POST = withAuth(async (req) => {
                         password: password, // This will be hashed by the pre-save middleware
                         role: 'user',
                         status: 'ACTIVE',
-                        portfolio: []
+                        portfolio: [],
+                        balance: DEFAULT_BALANCE // Set the default balance
                     });
                 }
 
                 // Handle portfolio updates if Key Investor and Shares Held fields exist
                 const portfolioUpdates = [];
+                let portfolioError = null;
+
                 if (row['Key Investor'] && row['Shares Held']) {
-                    const portfolioResult = await updateUserPortfolio(
+                    const portfolioResult = await updateUserPortfolioWithBalance(
                         existingUser,
                         row['Key Investor'],
                         row['Shares Held']
                     );
 
                     if (portfolioResult.success) {
-                        portfolioUpdates.push(`${portfolioResult.stock}: ${portfolioResult.quantity} shares`);
+                        portfolioUpdates.push(
+                            `${portfolioResult.stock}: ${portfolioResult.quantity} shares (₹${portfolioResult.investedValue.toLocaleString('en-IN')})`
+                        );
                     } else {
+                        portfolioError = portfolioResult.error;
                         errors.push(`Row ${i + 1}: Portfolio update failed - ${portfolioResult.error}`);
+
+                        // Add to results with error
+                        results.push({
+                            Email: row.Email,
+                            'Name': row['Name'],
+                            Password: 'N/A',
+                            Status: 'FAILED - INSUFFICIENT BALANCE',
+                            Error: portfolioResult.error,
+                            'Key Investor': row['Key Investor'],
+                            'Shares Held': row['Shares Held'],
+                            'Final Balance': 'N/A'
+                        });
+                        continue; // Skip saving this user
                     }
                 }
 
-                // Save the user (new or updated)
-                await existingUser.save();
+                // Save the user (new or updated) only if no portfolio errors
+                if (!portfolioError) {
+                    await existingUser.save();
 
-                // Prepare result for Excel file
-                const resultRow = {
-                    Email: row.Email,
-                    'Name': row['Name'],
-                    Password: password,
-                    Status: isNewUser ? 'NEW USER' : 'EXISTING USER UPDATED',
-                };
+                    // Prepare result for Excel file
+                    const resultRow = {
+                        Email: row.Email,
+                        'Name': row['Name'],
+                        Password: password,
+                        Status: isNewUser ? 'NEW USER CREATED' : 'EXISTING USER UPDATED',
+                        'Final Balance': `₹${existingUser.balance.toLocaleString('en-IN')}`
+                    };
 
-                // Add portfolio information if available
-                if (row['Key Investor']) {
-                    resultRow['Key Investor'] = row['Key Investor'];
+                    // Add portfolio information if available
+                    if (row['Key Investor']) {
+                        resultRow['Key Investor'] = row['Key Investor'];
+                    }
+                    if (row['Shares Held']) {
+                        resultRow['Shares Held'] = row['Shares Held'];
+                    }
+                    if (portfolioUpdates.length > 0) {
+                        resultRow['Portfolio Updates'] = portfolioUpdates.join('; ');
+                    }
+
+                    results.push(resultRow);
+
+                    console.log(`${isNewUser ? 'User created' : 'User updated'}: ${existingUser.email}, Balance: ₹${existingUser.balance.toLocaleString('en-IN')}${portfolioUpdates.length > 0 ? ` - Portfolio: ${portfolioUpdates.join('; ')}` : ''}`);
                 }
-                if (row['Shares Held']) {
-                    resultRow['Shares Held'] = row['Shares Held'];
-                }
-                if (portfolioUpdates.length > 0) {
-                    resultRow['Portfolio Updates'] = portfolioUpdates.join('; ');
-                }
-
-                results.push(resultRow);
-
-                console.log(`${isNewUser ? 'User created' : 'User updated'}: ${existingUser.email}${portfolioUpdates.length > 0 ? ` - Portfolio: ${portfolioUpdates.join('; ')}` : ''}`);
 
             } catch (error) {
                 console.error(`Error processing user for row ${i + 1}:`, error);
-                errors.push(`Row ${i + 1}: Failed to process user - ${error.message}`);
+                const errorMsg = `Failed to process user - ${error.message}`;
+                errors.push(`Row ${i + 1}: ${errorMsg}`);
+
+                // Add to results with error
+                results.push({
+                    Email: row.Email || 'N/A',
+                    'Name': row['Name'] || 'N/A',
+                    Password: 'N/A',
+                    Status: 'FAILED',
+                    Error: errorMsg,
+                    'Final Balance': 'N/A'
+                });
             }
         }
 
@@ -288,9 +359,13 @@ export const POST = withAuth(async (req) => {
         });
 
         // Log summary
+        const successfulUsers = results.filter(r => r.Status.includes('CREATED') || r.Status.includes('UPDATED')).length;
+        const failedUsers = results.filter(r => r.Status.includes('FAILED')).length;
+
         console.log(`Bulk user processing completed:`);
-        console.log(`- Successfully processed: ${results.length} users`);
-        console.log(`- Errors: ${errors.length}`);
+        console.log(`- Successfully processed: ${successfulUsers} users`);
+        console.log(`- Failed: ${failedUsers} users`);
+        console.log(`- Total errors: ${errors.length}`);
         if (errors.length > 0) {
             console.log('Errors:', errors);
         }
